@@ -348,9 +348,76 @@
 
         .mods-list-section h3 {
             color: var(--text-dark);
-            margin-bottom: 16px;
             font-size: 17px;
             font-weight: 700;
+        }
+
+        .mods-list-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .mods-list-controls {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .select-all-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-light);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .select-all-label input[type="checkbox"] {
+            width: 17px;
+            height: 17px;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        .btn-delete-selected {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border: 2px solid var(--danger-color);
+            background: white;
+            color: var(--danger-color);
+            border-radius: 999px;
+            font-family: inherit;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .btn-delete-selected:hover {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .mod-item-checkbox-wrap {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+        }
+
+        .mod-item-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary-color);
+            cursor: pointer;
         }
 
         .mods-list {
@@ -724,6 +791,111 @@
             margin-top: 15px;
         }
 
+        /* Info Tab */
+        .info-intro {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 22px;
+            margin-bottom: 24px;
+            font-size: 14.5px;
+            color: var(--text-dark);
+            line-height: 1.7;
+        }
+
+        .info-intro code,
+        .info-steps code {
+            background: rgba(6, 182, 212, 0.10);
+            color: var(--primary-dark);
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.92em;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .info-card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            text-align: center;
+            transition: all 0.25s ease;
+        }
+
+        .info-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 8px 20px -6px var(--shadow-color);
+            transform: translateY(-2px);
+        }
+
+        .info-card-icon {
+            font-size: 30px;
+            margin-bottom: 10px;
+        }
+
+        .info-card-title {
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--text-dark);
+            margin-bottom: 6px;
+        }
+
+        .info-card-text {
+            font-size: 12.5px;
+            color: var(--text-light);
+            line-height: 1.5;
+        }
+
+        .info-steps {
+            list-style: none;
+            counter-reset: info-step;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .info-steps li {
+            counter-increment: info-step;
+            position: relative;
+            padding-left: 44px;
+            font-size: 14px;
+            color: var(--text-dark);
+            line-height: 1.6;
+        }
+
+        .info-steps li::before {
+            content: counter(info-step);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: linear-gradient(120deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            font-weight: 700;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .info-note {
+            background: linear-gradient(160deg, rgba(6, 182, 212, 0.08), rgba(6, 182, 212, 0.02));
+            border: 1px dashed var(--primary-color);
+            border-radius: var(--radius-md);
+            padding: 18px 22px;
+            font-size: 13.5px;
+            color: var(--text-dark);
+            line-height: 1.6;
+        }
+
         /* Footer */
         .site-footer {
             text-align: center;
@@ -909,6 +1081,9 @@
             <button class="tab-btn" data-tab="settings">
                 <span class="tab-icon">⚙️</span> Ayarlar
             </button>
+            <button class="tab-btn" data-tab="info">
+                <span class="tab-icon">ℹ️</span> Bilgi
+            </button>
         </div>
 
         <div class="tabs-content">
@@ -925,7 +1100,16 @@
                         </div>
                     </div>
                     <div class="mods-list-section">
-                        <h3>Yüklenen Modlar</h3>
+                        <div class="mods-list-header">
+                            <h3>Yüklenen Modlar</h3>
+                            <div class="mods-list-controls">
+                                <label class="select-all-label">
+                                    <input type="checkbox" id="vehiclesSelectAll" onchange="toggleSelectAll('vehicles', this.checked)">
+                                    Tümünü Seç
+                                </label>
+                                <button class="btn-delete-selected" onclick="deleteSelectedMods('vehicles')">🗑️ Seçilenleri Sil</button>
+                            </div>
+                        </div>
                         <div class="mods-list" id="vehiclesList">
                             <p class="empty-message">Henüz mod eklenmedi</p>
                         </div>
@@ -946,7 +1130,16 @@
                         </div>
                     </div>
                     <div class="mods-list-section">
-                        <h3>Yüklenen Modlar</h3>
+                        <div class="mods-list-header">
+                            <h3>Yüklenen Modlar</h3>
+                            <div class="mods-list-controls">
+                                <label class="select-all-label">
+                                    <input type="checkbox" id="charactersSelectAll" onchange="toggleSelectAll('characters', this.checked)">
+                                    Tümünü Seç
+                                </label>
+                                <button class="btn-delete-selected" onclick="deleteSelectedMods('characters')">🗑️ Seçilenleri Sil</button>
+                            </div>
+                        </div>
                         <div class="mods-list" id="charactersList">
                             <p class="empty-message">Henüz mod eklenmedi</p>
                         </div>
@@ -967,7 +1160,16 @@
                         </div>
                     </div>
                     <div class="mods-list-section">
-                        <h3>Yüklenen Modlar</h3>
+                        <div class="mods-list-header">
+                            <h3>Yüklenen Modlar</h3>
+                            <div class="mods-list-controls">
+                                <label class="select-all-label">
+                                    <input type="checkbox" id="objectsSelectAll" onchange="toggleSelectAll('objects', this.checked)">
+                                    Tümünü Seç
+                                </label>
+                                <button class="btn-delete-selected" onclick="deleteSelectedMods('objects')">🗑️ Seçilenleri Sil</button>
+                            </div>
+                        </div>
                         <div class="mods-list" id="objectsList">
                             <p class="empty-message">Henüz mod eklenmedi</p>
                         </div>
@@ -988,7 +1190,16 @@
                         </div>
                     </div>
                     <div class="mods-list-section">
-                        <h3>Yüklenen Modlar</h3>
+                        <div class="mods-list-header">
+                            <h3>Yüklenen Modlar</h3>
+                            <div class="mods-list-controls">
+                                <label class="select-all-label">
+                                    <input type="checkbox" id="weaponsSelectAll" onchange="toggleSelectAll('weapons', this.checked)">
+                                    Tümünü Seç
+                                </label>
+                                <button class="btn-delete-selected" onclick="deleteSelectedMods('weapons')">🗑️ Seçilenleri Sil</button>
+                            </div>
+                        </div>
                         <div class="mods-list" id="weaponsList">
                             <p class="empty-message">Henüz mod eklenmedi</p>
                         </div>
@@ -1065,6 +1276,16 @@
                     </div>
 
                     <div class="settings-section">
+                        <h3>Yükleme Davranışı</h3>
+                        <div class="settings-grid">
+                            <div class="color-picker-group">
+                                <label>Mod Geçiş Süresi: <span id="modDelayValue">1</span> sn</label>
+                                <input type="range" id="modDelayRange" min="0" max="10" step="0.5" value="1" oninput="updateLoaderPreview()">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
                         <h3>Loader Ön İzleme</h3>
                         <div class="loader-preview" id="loaderPreview">
                             <div style="width: 100%; text-align: center;">
@@ -1076,6 +1297,67 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="info-tab">
+                <div class="tab-section">
+                    <h2>ℹ️ Bu Site Ne İşe Yarar?</h2>
+
+                    <div class="info-intro">
+                        <p>
+                            <strong>MTA San Andreas Mod Loader</strong>, MTA:SA sunucunuz için istemci taraflı
+                            (client-side) bir <strong>mod yükleme scripti</strong>ni tek tık ile, hiç Lua kodu
+                            yazmadan oluşturmanızı sağlayan bir araçtır. Araç, karakter, obje ve silah modlarınızı
+                            bu sayfaya sürükleyip bırakırsınız; site sizin için gerekli <code>Client.lua</code> ve
+                            <code>meta.xml</code> dosyalarını, dosya klasör yapısıyla birlikte hazır bir ZIP
+                            paketi olarak üretir. Elde ettiğiniz paketi doğrudan MTA sunucunuzdaki
+                            <code>resources</code> klasörüne atıp kaynağı başlatmanız yeterlidir.
+                        </p>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>🗂️ Mod Kategorileri</h3>
+                        <div class="info-grid">
+                            <div class="info-card">
+                                <div class="info-card-icon">🚗</div>
+                                <div class="info-card-title">Araçlar</div>
+                                <div class="info-card-text">Araç DFF/TXD dosyalarınızı ID numarasıyla yükleyin.</div>
+                            </div>
+                            <div class="info-card">
+                                <div class="info-card-icon">👤</div>
+                                <div class="info-card-title">Karakterler</div>
+                                <div class="info-card-text">Skin/karakter modellerini ID'sine göre değiştirin.</div>
+                            </div>
+                            <div class="info-card">
+                                <div class="info-card-icon">📦</div>
+                                <div class="info-card-title">Objeler</div>
+                                <div class="info-card-text">Harita objelerini DFF, TXD ve isteğe bağlı COL ile değiştirin.</div>
+                            </div>
+                            <div class="info-card">
+                                <div class="info-card-icon">🔫</div>
+                                <div class="info-card-title">Silahlar</div>
+                                <div class="info-card-text">Silah modellerini listeden seçerek doğru ID'ye eşleyin.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>🚀 Nasıl Kullanılır?</h3>
+                        <ol class="info-steps">
+                            <li><strong>Mod Yükleyin:</strong> İlgili sekmeye (Araçlar, Karakterler, Objeler, Silahlar) dosyalarınızı sürükleyip bırakın veya "Dosyaları Seç" ile ekleyin.</li>
+                            <li><strong>Kontrol Edin:</strong> "Yüklenen Modlar" listesinden ID ve mod adlarını gerekirse düzenleyin; istemediğiniz modları tek tek veya seçerek toplu şekilde silebilirsiniz.</li>
+                            <li><strong>Görünümü Özelleştirin:</strong> "Ayarlar" sekmesinden yükleme ekranının rengini, konumunu, boyutunu ve modlar arası geçiş süresini ayarlayın.</li>
+                            <li><strong>Script Oluşturun:</strong> "✓ Script Oluştur" butonuna basarak üretilen Lua kodunu önizleyin.</li>
+                            <li><strong>İndirin ve Kullanın:</strong> "📥 ZIP İndir" ile paketi indirin, MTA sunucunuzun <code>resources</code> klasörüne atıp kaynağı başlatın.</li>
+                        </ol>
+                    </div>
+
+                    <div class="info-note">
+                        Bu araç, oyuncular sunucuya bağlandığında modların otomatik olarak sırayla indirilip
+                        ekranda özelleştirilebilir bir yükleme çubuğu (progress bar) gösterilmesini sağlayan
+                        bir <strong>SparroWMTA Loader Oluşturma Sistemi</strong> ürünüdür.
                     </div>
                 </div>
             </div>

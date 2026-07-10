@@ -60,7 +60,8 @@ const loaderSettings = {
     textColor: '#FFFFFF',
     position: 'bottom',
     barWidth: 40,
-    fontSize: 14
+    fontSize: 14,
+    modDelay: 1
 };
 
 // Hex renk kodunu RGB'ye çevir (MTA tocolor() için)
@@ -161,12 +162,14 @@ function updateLoaderPreview() {
     const position = document.getElementById('loaderPosition').value;
     const barWidth = document.getElementById('barWidthRange').value;
     const fontSize = document.getElementById('fontSizeRange').value;
+    const modDelay = document.getElementById('modDelayRange').value;
     
     document.getElementById('primaryColorValue').textContent = primaryColor;
     document.getElementById('bgColorValue').textContent = bgColor;
     document.getElementById('textColorValue').textContent = textColor;
     document.getElementById('barWidthValue').textContent = `${barWidth}%`;
     document.getElementById('fontSizeValue').textContent = `${fontSize}px`;
+    document.getElementById('modDelayValue').textContent = modDelay;
     
     loaderSettings.style = style;
     loaderSettings.primaryColor = primaryColor;
@@ -175,6 +178,7 @@ function updateLoaderPreview() {
     loaderSettings.position = position;
     loaderSettings.barWidth = parseInt(barWidth, 10);
     loaderSettings.fontSize = parseInt(fontSize, 10);
+    loaderSettings.modDelay = parseFloat(modDelay);
     
     preview.style.background = bgColor;
     preview.style.alignItems = position === 'top' ? 'flex-start' : (position === 'center' ? 'center' : 'flex-end');
@@ -317,11 +321,15 @@ function handleFiles(files, category) {
 function updateModsList(category) {
     const listElement = document.getElementById(`${category}List`);
     const mods = modData[category];
+    const selectAllBox = document.getElementById(`${category}SelectAll`);
     
     if (mods.size === 0) {
         listElement.innerHTML = '<p class="empty-message">Henüz mod eklenmedi</p>';
+        if (selectAllBox) selectAllBox.checked = false;
         return;
     }
+    
+    if (selectAllBox) selectAllBox.checked = false;
     
     let html = '';
     
@@ -354,6 +362,9 @@ function updateModsList(category) {
         
         html += `
             <div class="${modItemClass}">
+                <div class="mod-item-checkbox-wrap">
+                    <input type="checkbox" class="mod-item-checkbox" data-mod-id="${modId}" onchange="updateSelectAllState('${category}')">
+                </div>
                 <div class="mod-item-info">
                     <div class="mod-item-id-row">
                         🆔 ID: <input type="text" class="${idInputClass}" value="${idInputValue}" placeholder="${idPlaceholder}"
@@ -456,6 +467,40 @@ function deleteMod(category, modId) {
     }
 }
 
+// Kategorideki tüm modları seç / seçimi kaldır
+function toggleSelectAll(category, checked) {
+    document.querySelectorAll(`#${category}List .mod-item-checkbox`).forEach(cb => {
+        cb.checked = checked;
+    });
+}
+
+// Tekil checkbox değiştiğinde "Tümünü Seç" kutusunun durumunu güncelle
+function updateSelectAllState(category) {
+    const selectAllBox = document.getElementById(`${category}SelectAll`);
+    if (!selectAllBox) return;
+    
+    const checkboxes = document.querySelectorAll(`#${category}List .mod-item-checkbox`);
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+    selectAllBox.checked = allChecked;
+}
+
+// Seçili modları toplu sil
+function deleteSelectedMods(category) {
+    const checkedBoxes = document.querySelectorAll(`#${category}List .mod-item-checkbox:checked`);
+    
+    if (checkedBoxes.length === 0) {
+        alert('⚠️ Lütfen silmek istediğiniz modları işaretleyin!');
+        return;
+    }
+    
+    const modIds = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-mod-id'));
+    
+    if (confirm(`${modIds.length} modu silmek istediğinize emin misiniz?`)) {
+        modIds.forEach(modId => modData[category].delete(modId));
+        updateModsList(category);
+    }
+}
+
 // Tüm modları temizle
 function clearAllMods() {
     if (confirm('Tüm modları silmek istediğinize emin misiniz?')) {
@@ -527,6 +572,15 @@ function generateClientLua() {
     lua += `-- Ana Renk: ${loaderSettings.primaryColor}\n`;
     lua += `-- Arka Plan: ${loaderSettings.bgColor}\n`;
     lua += `-- Yazı Rengi: ${loaderSettings.textColor}\n`;
+    lua += `-- ============================================\n`;
+    lua += `--\n`;
+    lua += `-- Bu Loader SparroWMTA Loader Oluşturma Sistemi İle Oluşturulmuştur.\n`;
+    lua += `--\n`;
+    lua += `-- Sitemiz : https://sparrow-mta.blogspot.com/\n`;
+    lua += `-- Facebook : https://facebook.com/sparrowgta/\n`;
+    lua += `-- İnstagram : https://instagram.com/sparrowmta/\n`;
+    lua += `-- YouTube : https://www.youtube.com/@TurkishSparroW/\n`;
+    lua += `-- Discord : https://discord.gg/DzgEcvy\n`;
     lua += `-- ============================================\n\n`;
     
     lua += `local modsToLoad = {}\n`;
@@ -546,7 +600,8 @@ function generateClientLua() {
     lua += `local loaderFontSize = ${loaderSettings.fontSize}\n`;
     lua += `local primaryColorRGB = {r = ${primaryRgb.r}, g = ${primaryRgb.g}, b = ${primaryRgb.b}}\n`;
     lua += `local bgColorRGB = {r = ${bgRgb.r}, g = ${bgRgb.g}, b = ${bgRgb.b}}\n`;
-    lua += `local textColorRGB = {r = ${textRgb.r}, g = ${textRgb.g}, b = ${textRgb.b}}\n\n`;
+    lua += `local textColorRGB = {r = ${textRgb.r}, g = ${textRgb.g}, b = ${textRgb.b}}\n`;
+    lua += `local modSwitchDelay = ${Math.max(50, Math.round(loaderSettings.modDelay * 1000))} -- ms cinsinden, bir mod indikten sonra diğerine geçiş süresi\n\n`;
     
     // Araçlar
     if (modData.vehicles.size > 0) {
@@ -688,7 +743,7 @@ function generateClientLua() {
     lua += `            end\n`;
     lua += `        end\n`;
     lua += `        \n`;
-    lua += `        setTimer(loadNextMod, 1000, 1)\n`;
+    lua += `        setTimer(loadNextMod, modSwitchDelay, 1)\n`;
     lua += `    else\n`;
     lua += `        isLoading = false\n`;
     lua += `        outputDebugString("[Mod Loader] ✓ Tüm modlar başarıyla yüklendi!", 3, 0, 255, 0)\n`;
