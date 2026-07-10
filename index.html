@@ -1,0 +1,1114 @@
+
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTA San Andreas Mod Loader</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #06b6d4;
+            --primary-dark: #0e7490;
+            --primary-light: #67e8f9;
+            --secondary-color: #FFFFFF;
+            --text-dark: #1e293b;
+            --text-light: #64748b;
+            --border-color: #e2e8f0;
+            --success-color: #22c55e;
+            --danger-color: #ef4444;
+            --danger-dark: #dc2626;
+            --background: #f1f5f9;
+            --shadow-color: rgba(6, 182, 212, 0.18);
+            --radius-lg: 20px;
+            --radius-md: 14px;
+            --radius-sm: 10px;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Outfit', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background:
+                radial-gradient(circle at 15% 0%, rgba(6, 182, 212, 0.10) 0%, transparent 45%),
+                radial-gradient(circle at 85% 100%, rgba(14, 116, 144, 0.10) 0%, transparent 45%),
+                linear-gradient(160deg, #eef4f8 0%, #f1f5f9 55%, #eaf7f9 100%);
+            background-attachment: fixed;
+            color: var(--text-dark);
+            min-height: 100vh;
+            padding: 24px 20px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--secondary-color);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 20px 50px -12px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(226, 232, 240, 0.8);
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            position: relative;
+            background: linear-gradient(120deg, var(--primary-dark) 0%, var(--primary-color) 55%, #22d3ee 100%);
+            color: white;
+            padding: 46px 20px 40px;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .header::before,
+        .header::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.10);
+            pointer-events: none;
+        }
+
+        .header::before {
+            width: 280px;
+            height: 280px;
+            top: -160px;
+            left: -80px;
+        }
+
+        .header::after {
+            width: 220px;
+            height: 220px;
+            bottom: -140px;
+            right: -60px;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .header h1 {
+            position: relative;
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .header p {
+            position: relative;
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0.92;
+            letter-spacing: 0.3px;
+        }
+
+        /* Tabs Navigation */
+        .tabs-navigation {
+            display: flex;
+            background: #f8fafc;
+            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 12px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            min-width: 130px;
+            padding: 12px 18px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-light);
+            border-radius: 999px;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            color: var(--primary-dark);
+            background: rgba(6, 182, 212, 0.08);
+        }
+
+        .tab-btn.active {
+            color: white;
+            background: linear-gradient(120deg, var(--primary-color), var(--primary-dark));
+            box-shadow: 0 6px 16px -4px var(--shadow-color);
+        }
+
+        .tab-icon {
+            font-size: 17px;
+        }
+
+        /* Tab Content */
+        .tabs-content {
+            position: relative;
+            min-height: 400px;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.35s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .tab-section {
+            padding: 34px 36px;
+        }
+
+        .tab-section h2 {
+            color: var(--text-dark);
+            margin-bottom: 24px;
+            font-size: 22px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: 12px;
+            border-bottom: 3px solid var(--primary-color);
+        }
+
+        .settings-section {
+            background: #f8fafc;
+            border-radius: var(--radius-md);
+            padding: 22px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border-color);
+        }
+
+        .settings-section h3 {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--text-dark);
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 18px;
+        }
+
+        .color-picker-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .color-picker-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .color-picker-wrapper {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .color-picker-wrapper input[type="color"] {
+            width: 48px;
+            height: 40px;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            background: white;
+        }
+
+        .color-value {
+            font-size: 12px;
+            color: var(--text-light);
+            font-family: 'Courier New', monospace;
+            flex: 1;
+        }
+
+        .loader-style-select {
+            padding: 10px 14px;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-family: inherit;
+            cursor: pointer;
+            background: white;
+            color: var(--text-dark);
+        }
+
+        .loader-style-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px var(--shadow-color);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        /* Upload Area */
+        .upload-section {
+            margin-bottom: 34px;
+        }
+
+        .upload-area {
+            border: 2.5px dashed var(--primary-color);
+            border-radius: var(--radius-md);
+            padding: 44px 20px;
+            text-align: center;
+            background: linear-gradient(160deg, rgba(6, 182, 212, 0.06), rgba(6, 182, 212, 0.02));
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary-dark);
+            background: rgba(6, 182, 212, 0.10);
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: var(--primary-dark);
+            background: rgba(6, 182, 212, 0.16);
+            transform: scale(1.015);
+        }
+
+        .upload-area p {
+            margin: 12px 0;
+            color: var(--text-dark);
+        }
+
+        .upload-area p:first-child {
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        .upload-hint {
+            font-size: 13px;
+            color: var(--text-light);
+        }
+
+        .upload-area .btn-secondary {
+            margin-top: 16px;
+        }
+
+        #vehiclesFileInput,
+        #charactersFileInput,
+        #objectsFileInput,
+        #weaponsFileInput {
+            display: none;
+        }
+
+        .weapon-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+        }
+
+        /* Mods List */
+        .mods-list-section {
+            margin-top: 34px;
+        }
+
+        .mods-list-section h3 {
+            color: var(--text-dark);
+            margin-bottom: 16px;
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        .mods-list {
+            display: grid;
+            gap: 14px;
+        }
+
+        .mod-item {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 18px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+            transition: all 0.25s ease;
+        }
+
+        .mod-item-info {
+            flex: 1 1 180px;
+            min-width: 160px;
+        }
+
+        .mod-item-weapon-select {
+            flex: 0 0 auto;
+        }
+
+        .mod-item-name-input {
+            flex: 1 1 200px;
+            max-width: 260px;
+        }
+
+        .mod-item-actions {
+            flex: 0 0 auto;
+        }
+
+        .mod-item:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 8px 20px -6px var(--shadow-color);
+            background: white;
+        }
+
+        .mod-item-id-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 700;
+            color: var(--primary-dark);
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .mod-item-id-input {
+            width: 90px;
+            padding: 6px 8px;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-family: inherit;
+            font-weight: 700;
+            color: var(--primary-dark);
+        }
+
+        .mod-item-id-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px var(--shadow-color);
+        }
+
+        .mod-item-id-input.missing {
+            border-color: var(--danger-color);
+            background: #fef2f2;
+        }
+
+        .mod-item-id-input.missing:focus {
+            border-color: var(--danger-color);
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.18);
+        }
+
+        .mod-item-id-warning {
+            color: var(--danger-color);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .mod-item.needs-id {
+            border-color: var(--danger-color);
+            box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.25);
+        }
+
+        .mod-item-files {
+            font-size: 13px;
+            color: var(--text-light);
+            margin-bottom: 6px;
+        }
+
+        .mod-item-size {
+            font-size: 12px;
+            color: var(--text-light);
+        }
+
+        .mod-item-weapon-select {
+            padding: 9px 12px;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-family: inherit;
+            cursor: pointer;
+            background: white;
+            min-width: 170px;
+            color: var(--text-dark);
+        }
+
+        .mod-item-weapon-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px var(--shadow-color);
+        }
+
+        .mod-item-name-input {
+            padding: 10px 14px;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-family: inherit;
+            transition: all 0.25s ease;
+            min-width: 150px;
+            color: var(--text-dark);
+        }
+
+        .mod-item-name-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px var(--shadow-color);
+        }
+
+        .mod-item-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .btn-icon {
+            background: white;
+            border: 2px solid var(--border-color);
+            cursor: pointer;
+            font-size: 17px;
+            padding: 9px 13px;
+            border-radius: var(--radius-sm);
+            transition: all 0.25s ease;
+            color: var(--text-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-icon:hover {
+            background: rgba(6, 182, 212, 0.08);
+            color: var(--primary-dark);
+            border-color: var(--primary-color);
+        }
+
+        .btn-icon.delete:hover {
+            background: rgba(239, 68, 68, 0.08);
+            color: var(--danger-color);
+            border-color: var(--danger-color);
+        }
+
+        .empty-message {
+            text-align: center;
+            color: var(--text-light);
+            padding: 44px 20px;
+            font-style: italic;
+            background: #f8fafc;
+            border-radius: var(--radius-md);
+            border: 1px dashed var(--border-color);
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 14px;
+            padding: 28px 36px;
+            background: #f8fafc;
+            justify-content: center;
+            flex-wrap: wrap;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .btn-primary,
+        .btn-secondary,
+        .btn-danger {
+            padding: 14px 34px;
+            border: none;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            letter-spacing: 0.3px;
+            min-width: 160px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(120deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            box-shadow: 0 8px 20px -4px var(--shadow-color);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px -4px var(--shadow-color);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--primary-dark);
+            border: 2px solid var(--primary-color);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(6, 182, 212, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: linear-gradient(120deg, var(--danger-color), var(--danger-dark));
+            color: white;
+            box-shadow: 0 8px 20px -4px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px -4px rgba(239, 68, 68, 0.35);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(2px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: var(--radius-lg);
+            width: 90%;
+            max-width: 800px;
+            max-height: 85vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 24px 60px -12px rgba(15, 23, 42, 0.4);
+        }
+
+        .modal-header {
+            background: linear-gradient(120deg, var(--primary-dark), var(--primary-color));
+            color: white;
+            padding: 20px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            color: white;
+            font-size: 22px;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1) rotate(90deg);
+        }
+
+        .modal-body {
+            padding: 24px 28px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        #previewCode {
+            background: #0f172a;
+            color: #e2e8f0;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 18px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            overflow-x: auto;
+        }
+
+        .modal-footer {
+            background: #f8fafc;
+            padding: 18px 28px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        /* Loader Preview */
+        .loader-preview {
+            background: #1a1a2e;
+            border-radius: var(--radius-md);
+            padding: 40px 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            min-height: 130px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .loader-bar-horizontal {
+            width: 80%;
+            height: 30px;
+            background: #333;
+            border-radius: 999px;
+            border: 2px solid #555;
+            overflow: hidden;
+        }
+
+        .loader-bar-horizontal-fill {
+            height: 100%;
+            width: 65%;
+            background: linear-gradient(90deg, var(--primary-color), var(--primary-dark));
+            animation: loadingHorizontal 2s infinite;
+        }
+
+        @keyframes loadingHorizontal {
+            0%, 100% { width: 0%; }
+            50% { width: 100%; }
+        }
+
+        .loader-info {
+            color: white;
+            font-size: 12px;
+            margin-top: 15px;
+        }
+
+        /* Footer */
+        .site-footer {
+            text-align: center;
+            max-width: 1200px;
+            margin: 18px auto 0;
+            padding: 4px 20px 8px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-light);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .tab-section {
+                padding: 28px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 12px;
+            }
+
+            .header {
+                padding: 34px 16px 30px;
+            }
+
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .header p {
+                font-size: 12px;
+            }
+
+            .tabs-navigation {
+                gap: 6px;
+                padding: 8px;
+            }
+
+            .tab-btn {
+                min-width: 0;
+                flex: 1 1 30%;
+                padding: 10px 8px;
+                font-size: 12px;
+                gap: 5px;
+            }
+
+            .tab-icon {
+                font-size: 15px;
+            }
+
+            .tab-section {
+                padding: 20px 16px;
+            }
+
+            .tab-section h2 {
+                font-size: 18px;
+                margin-bottom: 18px;
+            }
+
+            .upload-area {
+                padding: 30px 14px;
+            }
+
+            .mod-item {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 16px;
+            }
+
+            .mod-item-weapon-select,
+            .mod-item-name-input {
+                width: 100%;
+                max-width: none;
+                min-width: 0;
+            }
+
+            .mod-item-actions {
+                justify-content: stretch;
+            }
+
+            .mod-item-actions .btn-icon {
+                flex: 1;
+            }
+
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .action-buttons {
+                padding: 18px 14px;
+                flex-direction: column;
+            }
+
+            .btn-primary,
+            .btn-secondary,
+            .btn-danger {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .modal-header {
+                padding: 16px 18px;
+            }
+
+            .modal-body {
+                padding: 18px;
+            }
+
+            .modal-footer {
+                padding: 14px 18px;
+                flex-direction: column-reverse;
+            }
+
+            .modal-footer .btn-primary,
+            .modal-footer .btn-secondary {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 19px;
+            }
+
+            .tab-btn span.tab-icon {
+                font-size: 16px;
+            }
+
+            .tab-btn {
+                font-size: 11px;
+                padding: 9px 6px;
+            }
+
+            .tab-section h2 {
+                font-size: 16px;
+            }
+
+            .upload-area p:first-child {
+                font-size: 14px;
+            }
+
+            .upload-hint {
+                font-size: 11px;
+            }
+
+            .settings-section {
+                padding: 16px;
+            }
+
+            .color-picker-wrapper input[type="color"] {
+                width: 42px;
+                height: 36px;
+            }
+
+            #previewCode {
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><img src="tr.png" alt="TR" style="width: 32px; height: 32px; vertical-align: -6px; margin-right: 6px;"> MTA San Andreas Mod Loader</h1>
+            <p>Türk milletinin karakteri yüksektir. Türk milleti çalışkandır, Türk milleti zekidir, Ne mutlu Türküm diyene.</p>
+        </div>
+
+        <div class="tabs-navigation">
+            <button class="tab-btn active" data-tab="vehicles">
+                <span class="tab-icon">🚗</span> Araçlar
+            </button>
+            <button class="tab-btn" data-tab="characters">
+                <span class="tab-icon">👤</span> Karakterler
+            </button>
+            <button class="tab-btn" data-tab="objects">
+                <span class="tab-icon">📦</span> Objeler
+            </button>
+            <button class="tab-btn" data-tab="weapons">
+                <span class="tab-icon">🔫</span> Silahlar
+            </button>
+            <button class="tab-btn" data-tab="settings">
+                <span class="tab-icon">⚙️</span> Ayarlar
+            </button>
+        </div>
+
+        <div class="tabs-content">
+            <div class="tab-content active" id="vehicles-tab">
+                <div class="tab-section">
+                    <h2>🚗 Araç Modları</h2>
+                    <div class="upload-section">
+                        <div class="upload-area" id="vehiclesUploadArea">
+                            <p>📂 DFF ve TXD dosyalarını sürükleyip bırakın</p>
+                            <input type="file" id="vehiclesFileInput" multiple accept=".dff,.txd">
+                            <button class="btn-secondary" onclick="document.getElementById('vehiclesFileInput').click()">
+                                Dosyaları Seç
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mods-list-section">
+                        <h3>Yüklenen Modlar</h3>
+                        <div class="mods-list" id="vehiclesList">
+                            <p class="empty-message">Henüz mod eklenmedi</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="characters-tab">
+                <div class="tab-section">
+                    <h2>👤 Karakter Modları</h2>
+                    <div class="upload-section">
+                        <div class="upload-area" id="charactersUploadArea">
+                            <p>📂 DFF ve TXD dosyalarını sürükleyip bırakın</p>
+                            <input type="file" id="charactersFileInput" multiple accept=".dff,.txd">
+                            <button class="btn-secondary" onclick="document.getElementById('charactersFileInput').click()">
+                                Dosyaları Seç
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mods-list-section">
+                        <h3>Yüklenen Modlar</h3>
+                        <div class="mods-list" id="charactersList">
+                            <p class="empty-message">Henüz mod eklenmedi</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="objects-tab">
+                <div class="tab-section">
+                    <h2>📦 Obje Modları</h2>
+                    <div class="upload-section">
+                        <div class="upload-area" id="objectsUploadArea">
+                            <p>📂 DFF, TXD ve COL dosyalarını sürükleyip bırakın</p>
+                            <input type="file" id="objectsFileInput" multiple accept=".dff,.txd,.col">
+                            <button class="btn-secondary" onclick="document.getElementById('objectsFileInput').click()">
+                                Dosyaları Seç
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mods-list-section">
+                        <h3>Yüklenen Modlar</h3>
+                        <div class="mods-list" id="objectsList">
+                            <p class="empty-message">Henüz mod eklenmedi</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="weapons-tab">
+                <div class="tab-section">
+                    <h2>🔫 Silah Modları</h2>
+                    <div class="upload-section">
+                        <div class="upload-area" id="weaponsUploadArea">
+                            <p>📂 DFF ve TXD dosyalarını sürükleyip bırakın</p>
+                            <input type="file" id="weaponsFileInput" multiple accept=".dff,.txd">
+                            <button class="btn-secondary" onclick="document.getElementById('weaponsFileInput').click()">
+                                Dosyaları Seç
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mods-list-section">
+                        <h3>Yüklenen Modlar</h3>
+                        <div class="mods-list" id="weaponsList">
+                            <p class="empty-message">Henüz mod eklenmedi</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="settings-tab">
+                <div class="tab-section">
+                    <h2>⚙️ Script Ayarları</h2>
+                    
+                    <div class="settings-section">
+                        <h3>Loader Tasarımı</h3>
+                        <div class="settings-grid">
+                            <div class="color-picker-group">
+                                <label>Loader Tarzı:</label>
+                                <select class="loader-style-select" id="loaderStyle" onchange="updateLoaderPreview()">
+                                    <option value="panel">Kart Paneli</option>
+                                    <option value="frame">Çerçeveli Bar</option>
+                                    <option value="segmented">Bölmeli Bar</option>
+                                    <option value="sideLabel">Yüzde Vurgulu</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>Renkler</h3>
+                        <div class="settings-grid">
+                            <div class="color-picker-group">
+                                <label>Ana Renk:</label>
+                                <div class="color-picker-wrapper">
+                                    <input type="color" id="primaryColor" value="#2196F3" onchange="updateLoaderPreview()">
+                                    <span class="color-value" id="primaryColorValue">#2196F3</span>
+                                </div>
+                            </div>
+                            <div class="color-picker-group">
+                                <label>Arkaplan Rengi:</label>
+                                <div class="color-picker-wrapper">
+                                    <input type="color" id="bgColor" value="#222222" onchange="updateLoaderPreview()">
+                                    <span class="color-value" id="bgColorValue">#222222</span>
+                                </div>
+                            </div>
+                            <div class="color-picker-group">
+                                <label>Yazı Rengi:</label>
+                                <div class="color-picker-wrapper">
+                                    <input type="color" id="textColor" value="#FFFFFF" onchange="updateLoaderPreview()">
+                                    <span class="color-value" id="textColorValue">#FFFFFF</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>Konum ve Boyut</h3>
+                        <div class="settings-grid">
+                            <div class="color-picker-group">
+                                <label>Ekran Konumu:</label>
+                                <select class="loader-style-select" id="loaderPosition" onchange="updateLoaderPreview()">
+                                    <option value="bottom">Alt (Ekranın Altı)</option>
+                                    <option value="top">Üst (Ekranın Üstü)</option>
+                                    <option value="center">Orta</option>
+                                </select>
+                            </div>
+                            <div class="color-picker-group">
+                                <label>Bar Genişliği: <span id="barWidthValue">40%</span></label>
+                                <input type="range" id="barWidthRange" min="20" max="90" value="40" oninput="updateLoaderPreview()">
+                            </div>
+                            <div class="color-picker-group">
+                                <label>Yazı Boyutu: <span id="fontSizeValue">14px</span></label>
+                                <input type="range" id="fontSizeRange" min="10" max="24" value="14" oninput="updateLoaderPreview()">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>Loader Ön İzleme</h3>
+                        <div class="loader-preview" id="loaderPreview">
+                            <div style="width: 100%; text-align: center;">
+                                <div class="loader-bar-horizontal">
+                                    <div class="loader-bar-horizontal-fill"></div>
+                                </div>
+                                <div class="loader-info">
+                                    <p>Test Modu Yükleniyor... (45 MB / 100 MB) %45</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn-primary" onclick="generateScript()">
+                ✓ Script Oluştur
+            </button>
+            <button class="btn-danger" onclick="clearAllMods()">
+                ✕ Tümünü Temizle
+            </button>
+        </div>
+    </div>
+
+    <footer class="site-footer">© 2026 SparroWMTA Copyright</footer>
+
+    <div id="previewModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📜 Script Önizlemesi</h2>
+                <button class="modal-close" onclick="closePreview()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <pre id="previewCode"></pre>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closePreview()">Kapat</button>
+                <button class="btn-primary" onclick="downloadScript()">📥 ZIP İndir</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
