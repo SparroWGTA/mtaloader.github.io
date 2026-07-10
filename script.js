@@ -691,6 +691,8 @@ function generateClientLua() {
     lua += `-- YÜKLEME SİSTEMİ\n`;
     lua += `-- ============================================\n\n`;
     
+    lua += `local pendingDownloads = {}\n\n`;
+    
     lua += `function loadMods()\n`;
     lua += `    totalMods = #modsToLoad\n`;
     lua += `    currentMod = 0\n`;
@@ -702,10 +704,11 @@ function generateClientLua() {
     lua += `        totalSize = totalSize + mod.size\n`;
     lua += `    end\n`;
     lua += `    \n`;
-    lua += `    outputDebugString("[Mod Loader] Modlar yüklenmeye başlandı...", 3, 0, 255, 0)\n`;
+    lua += `    outputDebugString("[Mod Loader] Modlar indirilmeye başlandı...", 3, 0, 255, 0)\n`;
     lua += `    loadNextMod()\n`;
     lua += `end\n\n`;
     
+    lua += `-- Bir sonraki modun dosyalarını indirme kuyruğuna alır\n`;
     lua += `function loadNextMod()\n`;
     lua += `    if currentMod < totalMods then\n`;
     lua += `        currentMod = currentMod + 1\n`;
@@ -715,42 +718,82 @@ function generateClientLua() {
     lua += `        currentModName = mod.name\n`;
     lua += `        currentModSize = mod.size\n`;
     lua += `        currentPercentage = math.floor((loadedSize / totalSize) * 100)\n`;
-    lua += `        local percentage = currentPercentage\n`;
     lua += `        \n`;
-    lua += `        outputDebugString("[" .. currentMod .. "/" .. totalMods .. "] Yükleniyor: " .. mod.name .. " (" .. string.format("%.2f", mod.size) .. " MB) - %" .. percentage, 3, 0, 200, 255)\n`;
+    lua += `        outputDebugString("[" .. currentMod .. "/" .. totalMods .. "] İndiriliyor: " .. mod.name .. " (" .. string.format("%.2f", mod.size) .. " MB) - %" .. currentPercentage, 3, 0, 200, 255)\n`;
     lua += `        \n`;
-    lua += `        -- TXD dosyasını yükle\n`;
-    lua += `        local txd = engineLoadTXD(mod.txdFile)\n`;
-    lua += `        if txd then\n`;
-    lua += `            engineImportTXD(txd, tonumber(mod.id))\n`;
-    lua += `        else\n`;
-    lua += `            outputDebugString("[HATA] TXD yüklenemedi: " .. mod.txdFile, 3, 255, 0, 0)\n`;
-    lua += `        end\n`;
-    lua += `        \n`;
-    lua += `        -- DFF dosyasını yükle\n`;
-    lua += `        local dff = engineLoadDFF(mod.dffFile)\n`;
-    lua += `        if dff then\n`;
-    lua += `            engineReplaceModel(dff, tonumber(mod.id))\n`;
-    lua += `        else\n`;
-    lua += `            outputDebugString("[HATA] DFF yüklenemedi: " .. mod.dffFile, 3, 255, 0, 0)\n`;
-    lua += `        end\n`;
-    lua += `        \n`;
-    lua += `        -- COL dosyasını yükle (Objeler için)\n`;
+    lua += `        pendingDownloads = {}\n`;
+    lua += `        table.insert(pendingDownloads, {file = mod.txdFile, kind = "txd", mod = mod})\n`;
+    lua += `        table.insert(pendingDownloads, {file = mod.dffFile, kind = "dff", mod = mod})\n`;
     lua += `        if mod.colFile then\n`;
-    lua += `            local col = engineLoadCOL(mod.colFile)\n`;
-    lua += `            if col then\n`;
-    lua += `                engineReplaceCOL(col, tonumber(mod.id))\n`;
-    lua += `            end\n`;
+    lua += `            table.insert(pendingDownloads, {file = mod.colFile, kind = "col", mod = mod})\n`;
     lua += `        end\n`;
     lua += `        \n`;
-    lua += `        setTimer(loadNextMod, modSwitchDelay, 1)\n`;
+    lua += `        downloadModFiles()\n`;
     lua += `    else\n`;
     lua += `        isLoading = false\n`;
-    lua += `        outputDebugString("[Mod Loader] ✓ Tüm modlar başarıyla yüklendi!", 3, 0, 255, 0)\n`;
+    lua += `        outputDebugString("[Mod Loader] ✓ Tüm modlar başarıyla indirildi ve yüklendi!", 3, 0, 255, 0)\n`;
     lua += `    end\n`;
     lua += `end\n\n`;
     
-    lua += `-- Oyuncu sunucuya katıldığında modları yükle\n`;
+    lua += `-- Kuyruktaki bir sonraki dosyayı indirir (zaten diskte varsa direkt uygular)\n`;
+    lua += `function downloadModFiles()\n`;
+    lua += `    if #pendingDownloads > 0 then\n`;
+    lua += `        local entry = pendingDownloads[1]\n`;
+    lua += `        if fileExists(entry.file) then\n`;
+    lua += `            applyDownloadedFile(entry)\n`;
+    lua += `            table.remove(pendingDownloads, 1)\n`;
+    lua += `            downloadModFiles()\n`;
+    lua += `        else\n`;
+    lua += `            downloadFile(entry.file)\n`;
+    lua += `        end\n`;
+    lua += `    else\n`;
+    lua += `        setTimer(loadNextMod, modSwitchDelay, 1)\n`;
+    lua += `    end\n`;
+    lua += `end\n\n`;
+    
+    lua += `-- İndirilen dosyayı türüne göre modele uygular\n`;
+    lua += `function applyDownloadedFile(entry)\n`;
+    lua += `    local mod = entry.mod\n`;
+    lua += `    if entry.kind == "txd" then\n`;
+    lua += `        local txd = engineLoadTXD(entry.file)\n`;
+    lua += `        if txd then\n`;
+    lua += `            engineImportTXD(txd, tonumber(mod.id))\n`;
+    lua += `        else\n`;
+    lua += `            outputDebugString("[HATA] TXD yüklenemedi: " .. entry.file, 3, 255, 0, 0)\n`;
+    lua += `        end\n`;
+    lua += `    elseif entry.kind == "dff" then\n`;
+    lua += `        local dff = engineLoadDFF(entry.file)\n`;
+    lua += `        if dff then\n`;
+    lua += `            engineReplaceModel(dff, tonumber(mod.id))\n`;
+    lua += `        else\n`;
+    lua += `            outputDebugString("[HATA] DFF yüklenemedi: " .. entry.file, 3, 255, 0, 0)\n`;
+    lua += `        end\n`;
+    lua += `    elseif entry.kind == "col" then\n`;
+    lua += `        local col = engineLoadCOL(entry.file)\n`;
+    lua += `        if col then\n`;
+    lua += `            engineReplaceCOL(col, tonumber(mod.id))\n`;
+    lua += `        else\n`;
+    lua += `            outputDebugString("[HATA] COL yüklenemedi: " .. entry.file, 3, 255, 0, 0)\n`;
+    lua += `        end\n`;
+    lua += `    end\n`;
+    lua += `end\n\n`;
+    
+    lua += `-- meta.xml'de download="false" olduğu için dosyalar burada manuel indiriliyor\n`;
+    lua += `addEventHandler("onClientFileDownloadComplete", root, function(name, success)\n`;
+    lua += `    if source == resourceRoot then\n`;
+    lua += `        if #pendingDownloads > 0 and pendingDownloads[1].file == name then\n`;
+    lua += `            if success then\n`;
+    lua += `                applyDownloadedFile(pendingDownloads[1])\n`;
+    lua += `            else\n`;
+    lua += `                outputDebugString("[HATA] Dosya indirilemedi: " .. name, 3, 255, 0, 0)\n`;
+    lua += `            end\n`;
+    lua += `            table.remove(pendingDownloads, 1)\n`;
+    lua += `            downloadModFiles()\n`;
+    lua += `        end\n`;
+    lua += `    end\n`;
+    lua += `end)\n\n`;
+    
+    lua += `-- Oyuncu sunucuya katıldığında modları indirmeye başla\n`;
     lua += `addEventHandler("onClientResourceStart", resourceRoot, function()\n`;
     lua += `    loadMods()\n`;
     lua += `end)\n\n`;
@@ -883,8 +926,8 @@ function generateMetaXml() {
     if (modData.vehicles.size > 0) {
         xml += `    <!-- ARAÇ MODLARI -->\n`;
         modData.vehicles.forEach((mod) => {
-            if (mod.files.dff) xml += `    <file src="Mods/Araba/${mod.id}.dff" />\n`;
-            if (mod.files.txd) xml += `    <file src="Mods/Araba/${mod.id}.txd" />\n`;
+            if (mod.files.dff) xml += `    <file src="Mods/Araba/${mod.id}.dff" download="false" />\n`;
+            if (mod.files.txd) xml += `    <file src="Mods/Araba/${mod.id}.txd" download="false" />\n`;
         });
         xml += `\n`;
     }
@@ -892,8 +935,8 @@ function generateMetaXml() {
     if (modData.characters.size > 0) {
         xml += `    <!-- KARAKTER MODLARI -->\n`;
         modData.characters.forEach((mod) => {
-            if (mod.files.dff) xml += `    <file src="Mods/Karakter/${mod.id}.dff" />\n`;
-            if (mod.files.txd) xml += `    <file src="Mods/Karakter/${mod.id}.txd" />\n`;
+            if (mod.files.dff) xml += `    <file src="Mods/Karakter/${mod.id}.dff" download="false" />\n`;
+            if (mod.files.txd) xml += `    <file src="Mods/Karakter/${mod.id}.txd" download="false" />\n`;
         });
         xml += `\n`;
     }
@@ -901,9 +944,9 @@ function generateMetaXml() {
     if (modData.objects.size > 0) {
         xml += `    <!-- OBJE MODLARI -->\n`;
         modData.objects.forEach((mod) => {
-            if (mod.files.dff) xml += `    <file src="Mods/Obje/${mod.id}.dff" />\n`;
-            if (mod.files.txd) xml += `    <file src="Mods/Obje/${mod.id}.txd" />\n`;
-            if (mod.files.col) xml += `    <file src="Mods/Obje/${mod.id}.col" />\n`;
+            if (mod.files.dff) xml += `    <file src="Mods/Obje/${mod.id}.dff" download="false" />\n`;
+            if (mod.files.txd) xml += `    <file src="Mods/Obje/${mod.id}.txd" download="false" />\n`;
+            if (mod.files.col) xml += `    <file src="Mods/Obje/${mod.id}.col" download="false" />\n`;
         });
         xml += `\n`;
     }
@@ -912,8 +955,8 @@ function generateMetaXml() {
         xml += `    <!-- SİLAH MODLARI -->\n`;
         modData.weapons.forEach((mod) => {
             const effectiveId = mod.weaponId || mod.id;
-            if (mod.files.dff) xml += `    <file src="Mods/Silah/${effectiveId}.dff" />\n`;
-            if (mod.files.txd) xml += `    <file src="Mods/Silah/${effectiveId}.txd" />\n`;
+            if (mod.files.dff) xml += `    <file src="Mods/Silah/${effectiveId}.dff" download="false" />\n`;
+            if (mod.files.txd) xml += `    <file src="Mods/Silah/${effectiveId}.txd" download="false" />\n`;
         });
         xml += `\n`;
     }
