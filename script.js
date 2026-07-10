@@ -581,11 +581,6 @@ function generateClientLua() {
     lua += `-- İnstagram : https://instagram.com/sparrowmta/\n`;
     lua += `-- YouTube : https://www.youtube.com/@TurkishSparroW/\n`;
     lua += `-- Discord : https://discord.gg/DzgEcvy\n`;
-    lua += `-- ============================================\n`;
-    lua += `-- Bu script modları oyuna girerken değil, oyun içindeyken\n`;
-    lua += `-- downloadFile() ile gerçek zamanlı indirir (meta.xml'deki\n`;
-    lua += `-- download="false" ayarı sayesinde). Bu sayede klasik MTA\n`;
-    lua += `-- indirme ekranı yerine kendi mod loader arayüzünüz kullanılır.\n`;
     lua += `-- ============================================\n\n`;
     
     lua += `local modsToLoad = {}\n`;
@@ -596,9 +591,7 @@ function generateClientLua() {
     lua += `local totalSize = 0\n`;
     lua += `local currentModName = ""\n`;
     lua += `local currentModSize = 0\n`;
-    lua += `local currentPercentage = 0\n`;
-    lua += `local pendingFiles = {}\n`;
-    lua += `local modFilesRemaining = {}\n\n`;
+    lua += `local currentPercentage = 0\n\n`;
     
     lua += `-- Loader Tasarımı\n`;
     lua += `local loaderStyle = "${loaderSettings.style}"\n`;
@@ -716,77 +709,48 @@ function generateClientLua() {
     lua += `function loadNextMod()\n`;
     lua += `    if currentMod < totalMods then\n`;
     lua += `        currentMod = currentMod + 1\n`;
-    lua += `        local modIndex = currentMod\n`;
-    lua += `        local mod = modsToLoad[modIndex]\n`;
+    lua += `        local mod = modsToLoad[currentMod]\n`;
     lua += `        \n`;
+    lua += `        loadedSize = loadedSize + mod.size\n`;
     lua += `        currentModName = mod.name\n`;
     lua += `        currentModSize = mod.size\n`;
+    lua += `        currentPercentage = math.floor((loadedSize / totalSize) * 100)\n`;
+    lua += `        local percentage = currentPercentage\n`;
     lua += `        \n`;
-    lua += `        outputDebugString("[" .. currentMod .. "/" .. totalMods .. "] İndiriliyor: " .. mod.name .. " (" .. string.format("%.2f", mod.size) .. " MB)", 3, 0, 200, 255)\n`;
+    lua += `        outputDebugString("[" .. currentMod .. "/" .. totalMods .. "] Yükleniyor: " .. mod.name .. " (" .. string.format("%.2f", mod.size) .. " MB) - %" .. percentage, 3, 0, 200, 255)\n`;
     lua += `        \n`;
-    lua += `        -- Bu modun dosyalarını gerçek zamanlı indir (meta.xml'de download=\\"false\\" olduğu için oyuna girerken otomatik inmez)\n`;
-    lua += `        local filesToDownload = {mod.dffFile, mod.txdFile}\n`;
+    lua += `        -- TXD dosyasını yükle\n`;
+    lua += `        local txd = engineLoadTXD(mod.txdFile)\n`;
+    lua += `        if txd then\n`;
+    lua += `            engineImportTXD(txd, tonumber(mod.id))\n`;
+    lua += `        else\n`;
+    lua += `            outputDebugString("[HATA] TXD yüklenemedi: " .. mod.txdFile, 3, 255, 0, 0)\n`;
+    lua += `        end\n`;
+    lua += `        \n`;
+    lua += `        -- DFF dosyasını yükle\n`;
+    lua += `        local dff = engineLoadDFF(mod.dffFile)\n`;
+    lua += `        if dff then\n`;
+    lua += `            engineReplaceModel(dff, tonumber(mod.id))\n`;
+    lua += `        else\n`;
+    lua += `            outputDebugString("[HATA] DFF yüklenemedi: " .. mod.dffFile, 3, 255, 0, 0)\n`;
+    lua += `        end\n`;
+    lua += `        \n`;
+    lua += `        -- COL dosyasını yükle (Objeler için)\n`;
     lua += `        if mod.colFile then\n`;
-    lua += `            table.insert(filesToDownload, mod.colFile)\n`;
-    lua += `        end\n`;
-    lua += `        \n`;
-    lua += `        modFilesRemaining[modIndex] = #filesToDownload\n`;
-    lua += `        \n`;
-    lua += `        for _, filePath in ipairs(filesToDownload) do\n`;
-    lua += `            pendingFiles[filePath] = modIndex\n`;
-    lua += `            downloadFile(filePath)\n`;
-    lua += `        end\n`;
-    lua += `    else\n`;
-    lua += `        isLoading = false\n`;
-    lua += `        outputDebugString("[Mod Loader] ✓ Tüm modlar başarıyla yüklendi!", 3, 0, 255, 0)\n`;
-    lua += `        triggerEvent("loader.finish", resourceRoot)\n`;
-    lua += `    end\n`;
-    lua += `end\n\n`;
-    
-    lua += `-- Bir dosyanın gerçek indirmesi tamamlandığında MTA bu olayı tetikler\n`;
-    lua += `addEventHandler("onClientFileDownloadComplete", root, function(name, success)\n`;
-    lua += `    if source ~= resourceRoot then return end\n`;
-    lua += `    \n`;
-    lua += `    local modIndex = pendingFiles[name]\n`;
-    lua += `    if not modIndex then return end\n`;
-    lua += `    pendingFiles[name] = nil\n`;
-    lua += `    \n`;
-    lua += `    local mod = modsToLoad[modIndex]\n`;
-    lua += `    \n`;
-    lua += `    if success then\n`;
-    lua += `        if name:find(".txd", 1, true) then\n`;
-    lua += `            local txd = engineLoadTXD(name)\n`;
-    lua += `            if txd then\n`;
-    lua += `                engineImportTXD(txd, tonumber(mod.id))\n`;
-    lua += `            else\n`;
-    lua += `                outputDebugString("[HATA] TXD yüklenemedi: " .. name, 3, 255, 0, 0)\n`;
-    lua += `            end\n`;
-    lua += `        elseif name:find(".dff", 1, true) then\n`;
-    lua += `            local dff = engineLoadDFF(name)\n`;
-    lua += `            if dff then\n`;
-    lua += `                engineReplaceModel(dff, tonumber(mod.id))\n`;
-    lua += `            else\n`;
-    lua += `                outputDebugString("[HATA] DFF yüklenemedi: " .. name, 3, 255, 0, 0)\n`;
-    lua += `            end\n`;
-    lua += `        elseif name:find(".col", 1, true) then\n`;
-    lua += `            local col = engineLoadCOL(name)\n`;
+    lua += `            local col = engineLoadCOL(mod.colFile)\n`;
     lua += `            if col then\n`;
     lua += `                engineReplaceCOL(col, tonumber(mod.id))\n`;
     lua += `            end\n`;
     lua += `        end\n`;
-    lua += `    else\n`;
-    lua += `        outputDebugString("[HATA] Dosya indirilemedi: " .. name, 3, 255, 0, 0)\n`;
-    lua += `    end\n`;
-    lua += `    \n`;
-    lua += `    modFilesRemaining[modIndex] = modFilesRemaining[modIndex] - 1\n`;
-    lua += `    if modFilesRemaining[modIndex] <= 0 then\n`;
-    lua += `        loadedSize = loadedSize + mod.size\n`;
-    lua += `        currentPercentage = totalSize > 0 and math.floor((loadedSize / totalSize) * 100) or 100\n`;
+    lua += `        \n`;
     lua += `        setTimer(loadNextMod, modSwitchDelay, 1)\n`;
+    lua += `    else\n`;
+    lua += `        isLoading = false\n`;
+    lua += `        outputDebugString("[Mod Loader] ✓ Tüm modlar başarıyla yüklendi!", 3, 0, 255, 0)\n`;
     lua += `    end\n`;
-    lua += `end)\n\n`;
+    lua += `end\n\n`;
     
-    lua += `-- Oyuncu sunucuya katıldığında modları indirmeye başla\n`;
+    lua += `-- Oyuncu sunucuya katıldığında modları yükle\n`;
     lua += `addEventHandler("onClientResourceStart", resourceRoot, function()\n`;
     lua += `    loadMods()\n`;
     lua += `end)\n\n`;
@@ -915,16 +879,12 @@ function generateMetaXml() {
     xml += `<meta>\n`;
     xml += `    <info author="MTA Mod Loader" type="script" description="Otomatik Mod Yükleyici" />\n`;
     xml += `    <script src="Client.lua" type="client" />\n\n`;
-    xml += `    <!-- Not: download="false" kasıtlıdır. Bu sayede dosyalar oyuncu sunucuya\n`;
-    xml += `         katılırken otomatik inmez; Client.lua içindeki mod loader, oyun\n`;
-    xml += `         içindeyken downloadFile() ile gerçek zamanlı indirir. Bu satırları\n`;
-    xml += `         silmeyin/değiştirmeyin. -->\n\n`;
     
     if (modData.vehicles.size > 0) {
         xml += `    <!-- ARAÇ MODLARI -->\n`;
         modData.vehicles.forEach((mod) => {
-            if (mod.files.dff) xml += `    <file src="Mods/Araba/${mod.id}.dff" download="false" />\n`;
-            if (mod.files.txd) xml += `    <file src="Mods/Araba/${mod.id}.txd" download="false" />\n`;
+            if (mod.files.dff) xml += `    <file src="Mods/Araba/${mod.id}.dff" />\n`;
+            if (mod.files.txd) xml += `    <file src="Mods/Araba/${mod.id}.txd" />\n`;
         });
         xml += `\n`;
     }
@@ -932,8 +892,8 @@ function generateMetaXml() {
     if (modData.characters.size > 0) {
         xml += `    <!-- KARAKTER MODLARI -->\n`;
         modData.characters.forEach((mod) => {
-            if (mod.files.dff) xml += `    <file src="Mods/Karakter/${mod.id}.dff" download="false" />\n`;
-            if (mod.files.txd) xml += `    <file src="Mods/Karakter/${mod.id}.txd" download="false" />\n`;
+            if (mod.files.dff) xml += `    <file src="Mods/Karakter/${mod.id}.dff" />\n`;
+            if (mod.files.txd) xml += `    <file src="Mods/Karakter/${mod.id}.txd" />\n`;
         });
         xml += `\n`;
     }
@@ -941,9 +901,9 @@ function generateMetaXml() {
     if (modData.objects.size > 0) {
         xml += `    <!-- OBJE MODLARI -->\n`;
         modData.objects.forEach((mod) => {
-            if (mod.files.dff) xml += `    <file src="Mods/Obje/${mod.id}.dff" download="false" />\n`;
-            if (mod.files.txd) xml += `    <file src="Mods/Obje/${mod.id}.txd" download="false" />\n`;
-            if (mod.files.col) xml += `    <file src="Mods/Obje/${mod.id}.col" download="false" />\n`;
+            if (mod.files.dff) xml += `    <file src="Mods/Obje/${mod.id}.dff" />\n`;
+            if (mod.files.txd) xml += `    <file src="Mods/Obje/${mod.id}.txd" />\n`;
+            if (mod.files.col) xml += `    <file src="Mods/Obje/${mod.id}.col" />\n`;
         });
         xml += `\n`;
     }
@@ -952,8 +912,8 @@ function generateMetaXml() {
         xml += `    <!-- SİLAH MODLARI -->\n`;
         modData.weapons.forEach((mod) => {
             const effectiveId = mod.weaponId || mod.id;
-            if (mod.files.dff) xml += `    <file src="Mods/Silah/${effectiveId}.dff" download="false" />\n`;
-            if (mod.files.txd) xml += `    <file src="Mods/Silah/${effectiveId}.txd" download="false" />\n`;
+            if (mod.files.dff) xml += `    <file src="Mods/Silah/${effectiveId}.dff" />\n`;
+            if (mod.files.txd) xml += `    <file src="Mods/Silah/${effectiveId}.txd" />\n`;
         });
         xml += `\n`;
     }
