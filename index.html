@@ -32,6 +32,103 @@
             --radius-lg: 20px;
             --radius-md: 14px;
             --radius-sm: 10px;
+            --surface-alt: #f8fafc;
+            --surface-white: #ffffff;
+        }
+
+        /* ============================================
+           KARANLIK MOD
+           ============================================ */
+        body.dark-mode {
+            --secondary-color: #101827;
+            --text-dark: #e2e8f0;
+            --text-light: #94a3b8;
+            --border-color: #263449;
+            --background: #0b111f;
+            --surface-alt: #172234;
+            --surface-white: #101827;
+            background:
+                radial-gradient(circle at 15% 0%, rgba(6, 182, 212, 0.08) 0%, transparent 45%),
+                radial-gradient(circle at 85% 100%, rgba(14, 116, 144, 0.10) 0%, transparent 45%),
+                linear-gradient(160deg, #0a0f1a 0%, #0b111f 55%, #0a161a 100%);
+        }
+
+        body.dark-mode .container {
+            box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(38, 52, 73, 0.8);
+        }
+
+        body.dark-mode .settings-section,
+        body.dark-mode .mod-item,
+        body.dark-mode .empty-message,
+        body.dark-mode .action-buttons,
+        body.dark-mode .tabs-navigation,
+        body.dark-mode .modal-body,
+        body.dark-mode .bg-audio-row,
+        body.dark-mode .filename-input-wrap,
+        body.dark-mode .modal-filename-bar {
+            background: var(--surface-alt);
+        }
+
+        body.dark-mode .modal-content,
+        body.dark-mode .loader-style-select,
+        body.dark-mode .mod-item-name-input,
+        body.dark-mode .mod-item-id-input,
+        body.dark-mode .mod-item-weapon-select,
+        body.dark-mode .mod-search-input,
+        body.dark-mode .btn-secondary,
+        body.dark-mode .btn-delete-selected,
+        body.dark-mode .btn-bulk-id,
+        body.dark-mode .btn-bg-audio-remove,
+        body.dark-mode .btn-reset-settings,
+        body.dark-mode #outputFileName {
+            background: var(--surface-white);
+            color: var(--text-dark);
+        }
+
+        body.dark-mode .upload-area {
+            background: var(--surface-alt);
+        }
+
+        body.dark-mode .tab-btn {
+            color: var(--text-light);
+        }
+
+        body.dark-mode ::placeholder {
+            color: var(--text-light);
+            opacity: 0.7;
+        }
+
+        body.dark-mode .bg-image-slot {
+            background: var(--surface-white);
+        }
+
+        body.dark-mode pre#previewCode {
+            background: #0b111f;
+            color: #e2e8f0;
+        }
+
+        .dark-mode-toggle {
+            position: absolute;
+            top: 18px;
+            right: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border: 1.5px solid rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.12);
+            color: white;
+            border-radius: 999px;
+            font-family: inherit;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            z-index: 2;
+        }
+
+        .dark-mode-toggle:hover {
+            background: rgba(255, 255, 255, 0.22);
         }
 
         html {
@@ -827,6 +924,206 @@
             color: white;
         }
 
+        .btn-bulk-id {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border: 2px solid var(--primary-color);
+            background: white;
+            color: var(--primary-dark);
+            border-radius: 999px;
+            font-family: inherit;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-bulk-id:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        /* Sekme başlıklarındaki sayaç rozeti */
+        .tab-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            font-size: 11px;
+            font-weight: 800;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.25);
+            color: inherit;
+        }
+
+        .tab-btn:not(.active) .tab-count {
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--primary-dark);
+        }
+
+        .tab-count.is-zero {
+            opacity: 0.55;
+        }
+
+        /* Arama/filtre kutusu */
+        .mod-search-wrap {
+            margin-bottom: 14px;
+        }
+
+        .mod-search-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-family: inherit;
+            background: white;
+            color: var(--text-dark);
+        }
+
+        .mod-search-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px var(--shadow-color);
+        }
+
+        /* Toplam boyut göstergesi */
+        .mods-list-total {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--text-light);
+            white-space: nowrap;
+        }
+
+        .mods-list-total strong {
+            color: var(--primary-dark);
+        }
+
+        .grand-total-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-light);
+            background: var(--surface-alt);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .grand-total-bar strong {
+            color: var(--primary-dark);
+        }
+
+        /* Script/ZIP oluşturma ilerleme göstergesi */
+        .progress-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(2px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .progress-overlay.active {
+            display: flex;
+        }
+
+        .progress-card {
+            background: var(--surface-white, white);
+            color: var(--text-dark);
+            border-radius: var(--radius-lg);
+            padding: 30px 34px;
+            width: 90%;
+            max-width: 360px;
+            text-align: center;
+            box-shadow: 0 24px 60px -12px rgba(15, 23, 42, 0.4);
+        }
+
+        .progress-card p {
+            font-size: 13.5px;
+            font-weight: 700;
+            margin-bottom: 14px;
+        }
+
+        .progress-bar-track {
+            width: 100%;
+            height: 10px;
+            background: var(--border-color);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(120deg, var(--primary-color), var(--primary-dark));
+            transition: width 0.2s ease;
+        }
+
+        .progress-percent {
+            margin-top: 10px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-light);
+        }
+
+        /* Toplu ID atama modalı */
+        .bulk-id-modal-content {
+            max-width: 420px;
+        }
+
+        .bulk-id-summary {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 16px;
+        }
+
+        .bulk-id-label {
+            display: block;
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 8px;
+        }
+
+        .bulk-id-input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 15px;
+            font-family: inherit;
+            font-weight: 700;
+            background: white;
+            color: var(--text-dark);
+        }
+
+        .bulk-id-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px var(--shadow-color);
+        }
+
+        .bulk-id-hint {
+            margin-top: 10px;
+            font-size: 12px;
+            color: var(--text-light);
+        }
+
+        body.dark-mode .bulk-id-input {
+            background: var(--surface-white);
+            color: var(--text-dark);
+        }
+
         .mod-item-checkbox-wrap {
             flex: 0 0 auto;
             display: flex;
@@ -846,7 +1143,7 @@
         }
 
         .mod-item {
-            background: #f8fafc;
+            background: var(--surface-alt);
             border: 1px solid var(--border-color);
             border-radius: var(--radius-md);
             padding: 18px 20px;
@@ -854,7 +1151,29 @@
             flex-wrap: wrap;
             gap: 16px;
             align-items: center;
-            transition: all 0.25s ease;
+            transition: all 0.25s ease, background 1.6s ease;
+        }
+
+        @keyframes modItemHighlight {
+            0% { background: rgba(34, 197, 94, 0.30); }
+            100% { background: var(--surface-alt); }
+        }
+
+        .mod-item.mod-item-new {
+            animation: modItemHighlight 1.8s ease-out;
+        }
+
+        .mod-item-new-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            margin-left: 8px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.3px;
+            color: white;
+            background: var(--success-color);
+            border-radius: 999px;
+            vertical-align: middle;
         }
 
         .mod-item-info {
@@ -1031,7 +1350,7 @@
             color: var(--text-light);
             padding: 44px 20px;
             font-style: italic;
-            background: #f8fafc;
+            background: var(--surface-alt);
             border-radius: var(--radius-md);
             border: 1px dashed var(--border-color);
         }
@@ -1698,22 +2017,23 @@
 <body>
     <div class="container">
         <div class="header">
+            <button type="button" class="dark-mode-toggle" id="darkModeToggleBtn" onclick="toggleDarkMode()">🌙 Karanlık Mod</button>
             <h1><img src="tr.png" alt="TR" style="width: 32px; height: 32px; vertical-align: -6px; margin-right: 6px;"> MTA San Andreas Mod Loader</h1>
             <p>Türk milletinin karakteri yüksektir. Türk milleti çalışkandır, Türk milleti zekidir, Ne mutlu Türküm diyene.</p>
         </div>
 
         <div class="tabs-navigation">
             <button class="tab-btn active" data-tab="vehicles">
-                <span class="tab-icon">🚗</span> Araçlar
+                <span class="tab-icon">🚗</span> Araçlar <span class="tab-count is-zero" id="vehiclesTabCount">0</span>
             </button>
             <button class="tab-btn" data-tab="characters">
-                <span class="tab-icon">👤</span> Karakterler
+                <span class="tab-icon">👤</span> Karakterler <span class="tab-count is-zero" id="charactersTabCount">0</span>
             </button>
             <button class="tab-btn" data-tab="objects">
-                <span class="tab-icon">📦</span> Objeler
+                <span class="tab-icon">📦</span> Objeler <span class="tab-count is-zero" id="objectsTabCount">0</span>
             </button>
             <button class="tab-btn" data-tab="weapons">
-                <span class="tab-icon">🔫</span> Silahlar
+                <span class="tab-icon">🔫</span> Silahlar <span class="tab-count is-zero" id="weaponsTabCount">0</span>
             </button>
             <button class="tab-btn" data-tab="settings">
                 <span class="tab-icon">⚙️</span> Ayarlar
@@ -1739,13 +2059,18 @@
                     <div class="mods-list-section">
                         <div class="mods-list-header">
                             <h3>Yüklenen Modlar</h3>
+                            <span class="mods-list-total" id="vehiclesTotalSize">Toplam: 0 mod, 0.00 MB</span>
                             <div class="mods-list-controls">
                                 <label class="select-all-label">
                                     <input type="checkbox" id="vehiclesSelectAll" onchange="toggleSelectAll('vehicles', this.checked)">
                                     Tümünü Seç
                                 </label>
+                                <button class="btn-bulk-id" onclick="bulkAssignIds('vehicles')" title="Seçili modlara sıralı ID ata (MTA Wiki Vehicle IDs sayfasından doğru aralığı kontrol edin)">🔢 Sıralı ID Ata</button>
                                 <button class="btn-delete-selected" onclick="deleteSelectedMods('vehicles')">🗑️ Seçilenleri Sil</button>
                             </div>
+                        </div>
+                        <div class="mod-search-wrap">
+                            <input type="text" class="mod-search-input" id="vehiclesSearch" placeholder="🔍 ID veya isme göre ara..." oninput="filterModsList('vehicles', this.value)">
                         </div>
                         <div class="mods-list" id="vehiclesList">
                             <p class="empty-message">Henüz mod eklenmedi</p>
@@ -1769,13 +2094,18 @@
                     <div class="mods-list-section">
                         <div class="mods-list-header">
                             <h3>Yüklenen Modlar</h3>
+                            <span class="mods-list-total" id="charactersTotalSize">Toplam: 0 mod, 0.00 MB</span>
                             <div class="mods-list-controls">
                                 <label class="select-all-label">
                                     <input type="checkbox" id="charactersSelectAll" onchange="toggleSelectAll('characters', this.checked)">
                                     Tümünü Seç
                                 </label>
+                                <button class="btn-bulk-id" onclick="bulkAssignIds('characters')" title="Seçili modlara sıralı ID ata (MTA Wiki Character Skins sayfasından doğru aralığı kontrol edin)">🔢 Sıralı ID Ata</button>
                                 <button class="btn-delete-selected" onclick="deleteSelectedMods('characters')">🗑️ Seçilenleri Sil</button>
                             </div>
+                        </div>
+                        <div class="mod-search-wrap">
+                            <input type="text" class="mod-search-input" id="charactersSearch" placeholder="🔍 ID veya isme göre ara..." oninput="filterModsList('characters', this.value)">
                         </div>
                         <div class="mods-list" id="charactersList">
                             <p class="empty-message">Henüz mod eklenmedi</p>
@@ -1799,13 +2129,18 @@
                     <div class="mods-list-section">
                         <div class="mods-list-header">
                             <h3>Yüklenen Modlar</h3>
+                            <span class="mods-list-total" id="objectsTotalSize">Toplam: 0 mod, 0.00 MB</span>
                             <div class="mods-list-controls">
                                 <label class="select-all-label">
                                     <input type="checkbox" id="objectsSelectAll" onchange="toggleSelectAll('objects', this.checked)">
                                     Tümünü Seç
                                 </label>
+                                <button class="btn-bulk-id" onclick="bulkAssignIds('objects')" title="Seçili modlara sıralı ID ata (MTA Wiki Object IDs sayfasından doğru aralığı kontrol edin)">🔢 Sıralı ID Ata</button>
                                 <button class="btn-delete-selected" onclick="deleteSelectedMods('objects')">🗑️ Seçilenleri Sil</button>
                             </div>
+                        </div>
+                        <div class="mod-search-wrap">
+                            <input type="text" class="mod-search-input" id="objectsSearch" placeholder="🔍 ID veya isme göre ara..." oninput="filterModsList('objects', this.value)">
                         </div>
                         <div class="mods-list" id="objectsList">
                             <p class="empty-message">Henüz mod eklenmedi</p>
@@ -1829,6 +2164,7 @@
                     <div class="mods-list-section">
                         <div class="mods-list-header">
                             <h3>Yüklenen Modlar</h3>
+                            <span class="mods-list-total" id="weaponsTotalSize">Toplam: 0 mod, 0.00 MB</span>
                             <div class="mods-list-controls">
                                 <label class="select-all-label">
                                     <input type="checkbox" id="weaponsSelectAll" onchange="toggleSelectAll('weapons', this.checked)">
@@ -1836,6 +2172,9 @@
                                 </label>
                                 <button class="btn-delete-selected" onclick="deleteSelectedMods('weapons')">🗑️ Seçilenleri Sil</button>
                             </div>
+                        </div>
+                        <div class="mod-search-wrap">
+                            <input type="text" class="mod-search-input" id="weaponsSearch" placeholder="🔍 ID veya isme göre ara..." oninput="filterModsList('weapons', this.value)">
                         </div>
                         <div class="mods-list" id="weaponsList">
                             <p class="empty-message">Henüz mod eklenmedi</p>
@@ -2227,6 +2566,8 @@
             </div>
         </div>
 
+        <div class="grand-total-bar" id="grandTotalBar">📦 Toplam: <strong>0</strong> mod, <strong>0.00 MB</strong></div>
+
         <div class="action-buttons">
             <button class="btn-primary" onclick="generateScript()">
                 ✓ Script Oluştur
@@ -2263,8 +2604,37 @@
         </div>
     </div>
 
+    <div id="bulkIdModal" class="modal">
+        <div class="modal-content bulk-id-modal-content">
+            <div class="modal-header">
+                <h2>🔢 Sıralı ID Ata</h2>
+                <button class="modal-close" onclick="closeBulkIdModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="bulk-id-summary" id="bulkIdSummary">0 moda sıralı ID atanacak.</p>
+                <label class="bulk-id-label" for="bulkIdStartInput">Başlangıç ID'sini girin</label>
+                <input type="number" min="0" step="1" id="bulkIdStartInput" class="bulk-id-input" value="0">
+                <p class="bulk-id-hint" id="bulkIdHint">Doğru aralık için MTA Wiki'yi kontrol edin.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeBulkIdModal()">İptal</button>
+                <button class="btn-primary" onclick="confirmBulkAssignIds()">✓ Ata</button>
+            </div>
+        </div>
+    </div>
+
     <div id="toastContainer" class="toast-container"></div>
 
-    <script src="script.js"></script>
+    <div id="zipProgressOverlay" class="progress-overlay">
+        <div class="progress-card">
+            <p>📦 ZIP paketi oluşturuluyor...</p>
+            <div class="progress-bar-track">
+                <div class="progress-bar-fill" id="zipProgressFill"></div>
+            </div>
+            <div class="progress-percent" id="zipProgressPercent">%0</div>
+        </div>
+    </div>
+
+    <script src="script.js?v=3"></script>
 </body>
 </html>

@@ -151,6 +151,29 @@ function getExistingModEntry(category, key) {
 // İndirilecek ZIP dosyasının adı (kullanıcı önizleme ekranında değiştirebilir)
 let outputFileName = 'MTA_ModLoader';
 
+// Her kategori için aktif arama/filtre terimi ("Arama/filtre kutusu" özelliği)
+const modSearchTerms = { vehicles: '', characters: '', objects: '', weapons: '' };
+
+// "Son eklenen" vurgusu için: bir sonraki render'da hangi mod anahtarlarının
+// yeşil highlight animasyonuyla gösterileceğini tutar. Render sonrası temizlenir.
+const recentlyAddedKeys = {
+    vehicles: new Set(),
+    characters: new Set(),
+    objects: new Set(),
+    weapons: new Set()
+};
+
+// Kategori bazında toplu ID atarken önerilen başlangıç ID'si.
+// Bu sadece bir öneri; kullanıcı MTA Wiki'deki gerçek ID listesine göre değiştirebilir:
+// Araçlar: https://wiki.multitheftauto.com/wiki/Vehicle_IDs
+// Karakterler: https://wiki.multitheftauto.com/wiki/Character_Skins
+// Objeler: https://dev.prineside.com/en/gtasa_samp_model_id/
+const BULK_ID_SUGGESTIONS = { vehicles: 400, characters: 0, objects: 1300 };
+
+// Toplu ID atama modalı açıkken hangi kategori/mod anahtarları üzerinde
+// işlem yapılacağını tutan geçici durum
+let bulkIdContext = { category: null, modIds: [] };
+
 // Loader ayarları
 const DEFAULT_LOADER_SETTINGS = {
     style: 'panel',
@@ -211,8 +234,41 @@ document.addEventListener('DOMContentLoaded', function() {
     setupDragDrop();
     setupBgImageInputs();
     setupBgAudioInput();
+    setupDarkMode();
     updateLoaderPreview();
+    ['vehicles', 'characters', 'objects', 'weapons'].forEach(updateModsList);
 });
+
+// ============================================
+// KARANLIK MOD
+// ============================================
+function setupDarkMode() {
+    let saved = null;
+    try {
+        saved = localStorage.getItem('mtaModLoaderDarkMode');
+    } catch (e) {
+        // localStorage erişilemiyorsa (örn. bazı gizli sekme ayarları) sessizce varsayılana düş
+    }
+    const enabled = saved === '1';
+    if (enabled) document.body.classList.add('dark-mode');
+    updateDarkModeButtonLabel(enabled);
+}
+
+function toggleDarkMode() {
+    const enabled = document.body.classList.toggle('dark-mode');
+    try {
+        localStorage.setItem('mtaModLoaderDarkMode', enabled ? '1' : '0');
+    } catch (e) {
+        // saklama başarısız olsa da geçerli oturumda tema değişmeye devam eder
+    }
+    updateDarkModeButtonLabel(enabled);
+}
+
+function updateDarkModeButtonLabel(enabled) {
+    const btn = document.getElementById('darkModeToggleBtn');
+    if (!btn) return;
+    btn.textContent = enabled ? '☀️ Aydınlık Mod' : '🌙 Karanlık Mod';
+}
 
 // Ayarlar bölümlerindeki "ℹ️ Bilgi" butonu: açıklama metnini aç/kapat
 function toggleInfo(descId, btn) {
@@ -683,6 +739,7 @@ function handleFiles(files, category) {
         if (isModComplete(entry, category)) {
             pendingModData[category].delete(key);
             modData[category].set(key, entry);
+            recentlyAddedKeys[category].add(key);
         } else {
             modData[category].delete(key);
             pendingModData[category].set(key, entry);
@@ -739,20 +796,34 @@ function updateModsList(category) {
     const listElement = document.getElementById(`${category}List`);
     const mods = modData[category];
     const selectAllBox = document.getElementById(`${category}SelectAll`);
-    
+
+    // Sekme rozeti ve toplam boyut, arama filtresinden bağımsız olarak HER ZAMAN
+    // tüm kategori üzerinden hesaplanır (filtre sadece görünürlüğü etkiler)
+    updateTabCount(category, mods.size);
+    updateCategoryTotalSize(category, mods);
+    updateGrandTotal();
+
     if (mods.size === 0) {
         listElement.innerHTML = '<p class="empty-message">Henüz mod eklenmedi</p>';
         if (selectAllBox) selectAllBox.checked = false;
         return;
     }
-    
+
     if (selectAllBox) selectAllBox.checked = false;
 
     const idOwners = getGlobalIdOwners();
-    
+    const searchTerm = (modSearchTerms[category] || '').trim().toLowerCase();
+    const newKeys = recentlyAddedKeys[category];
+
     let html = '';
-    
+    let visibleCount = 0;
+
     mods.forEach((mod, modId) => {
+        if (searchTerm) {
+            const haystack = `${mod.id} ${mod.name}`.toLowerCase();
+            if (!haystack.includes(searchTerm)) return;
+        }
+        visibleCount++;
         const dffSize = mod.sizes.dff || '0';
         const txdSize = mod.sizes.txd || '0';
         const colSize = mod.sizes.col || '0';
@@ -797,11 +868,15 @@ function updateModsList(category) {
             idWarning = `<span class="mod-item-id-warning conflict">⚠️ Bu ID başka bir modda kullanılıyor (${otherLabels})</span>`;
             modItemClass += ' id-conflict';
         }
-        
+
+        const isNew = newKeys.has(modId);
+        if (isNew) modItemClass += ' mod-item-new';
+        const newBadge = isNew ? '<span class="mod-item-new-badge">YENİ</span>' : '';
+
         html += `
             <div class="${modItemClass}">
                 <div class="mod-item-checkbox-wrap">
-                    <input type="checkbox" class="mod-item-checkbox" data-mod-id="${modId}" onchange="updateSelectAllState('${category}')">
+                    <input type="checkbox" class="mod-item-checkbox" data-mod-id="${modId}" onchange="updateSelectAllState('${category}')">${newBadge}
                 </div>
                 <div class="mod-item-info">
                     <div class="mod-item-id-row">
@@ -822,8 +897,60 @@ function updateModsList(category) {
             </div>
         `;
     });
-    
-    listElement.innerHTML = html;
+
+    if (visibleCount === 0) {
+        listElement.innerHTML = `<p class="empty-message">"${modSearchTerms[category]}" ile eşleşen mod bulunamadı</p>`;
+    } else {
+        listElement.innerHTML = html;
+    }
+
+    // Highlight bir kez gösterildikten sonra listeden çıkar; sonraki alakasız
+    // render'larda (örn. başka bir modun adı değiştiğinde) yeniden animasyon oynamasın
+    newKeys.clear();
+}
+
+// Kategori bazında arama/filtre kutusu girişini işler
+function filterModsList(category, term) {
+    modSearchTerms[category] = term || '';
+    updateModsList(category);
+}
+
+// Sekme başlığındaki mod sayısı rozetini günceller
+function updateTabCount(category, count) {
+    const badge = document.getElementById(`${category}TabCount`);
+    if (!badge) return;
+    badge.textContent = count;
+    badge.classList.toggle('is-zero', count === 0);
+}
+
+// Kategori başına toplam mod sayısı/boyutunu günceller
+function updateCategoryTotalSize(category, mods) {
+    const el = document.getElementById(`${category}TotalSize`);
+    if (!el) return;
+    let totalMb = 0;
+    mods.forEach(mod => {
+        Object.values(mod.sizes || {}).forEach(sizeStr => {
+            totalMb += parseFloat(sizeStr) || 0;
+        });
+    });
+    el.innerHTML = `Toplam: <strong>${mods.size}</strong> mod, <strong>${totalMb.toFixed(2)} MB</strong>`;
+}
+
+// Tüm kategorilerin toplam mod sayısı/boyutunu günceller
+function updateGrandTotal() {
+    const bar = document.getElementById('grandTotalBar');
+    if (!bar) return;
+    let totalCount = 0;
+    let totalMb = 0;
+    ['vehicles', 'characters', 'objects', 'weapons'].forEach(category => {
+        modData[category].forEach(mod => {
+            totalCount++;
+            Object.values(mod.sizes || {}).forEach(sizeStr => {
+                totalMb += parseFloat(sizeStr) || 0;
+            });
+        });
+    });
+    bar.innerHTML = `📦 Toplam: <strong>${totalCount}</strong> mod, <strong>${totalMb.toFixed(2)} MB</strong>`;
 }
 
 // Yüklenen mod için silah ID'sini ayarla
@@ -920,6 +1047,107 @@ function updateSelectAllState(category) {
     const checkboxes = document.querySelectorAll(`#${category}List .mod-item-checkbox`);
     const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
     selectAllBox.checked = allChecked;
+}
+
+// Seçili modlara sıralı ID ata (örn. 400, 401, 402...). Kategori içinde zaten
+// kullanılan ID'leri atlar. Önerilen başlangıç değeri gerçek bir GTA:SA ID aralığı
+// GARANTİSİ DEĞİLDİR — kullanıcı script oluşturmadan önce MTA Wiki'den doğrulamalı.
+function bulkAssignIds(category) {
+    const checkedBoxes = document.querySelectorAll(`#${category}List .mod-item-checkbox:checked`);
+
+    if (checkedBoxes.length === 0) {
+        showToast('Lütfen ID atamak istediğiniz modları işaretleyin!', 'warning');
+        return;
+    }
+
+    bulkIdContext.category = category;
+    bulkIdContext.modIds = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-mod-id'));
+
+    const suggestedStart = BULK_ID_SUGGESTIONS[category] ?? 1;
+    const wikiHints = {
+        vehicles: 'Doğru aralık için MTA Wiki\'deki Vehicle IDs sayfasını kontrol edin.',
+        characters: 'Doğru aralık için MTA Wiki\'deki Character Skins sayfasını kontrol edin.',
+        objects: 'Doğru aralık için MTA Wiki\'deki Object IDs sayfasını kontrol edin.'
+    };
+
+    const summaryEl = document.getElementById('bulkIdSummary');
+    const hintEl = document.getElementById('bulkIdHint');
+    const inputEl = document.getElementById('bulkIdStartInput');
+    if (summaryEl) summaryEl.textContent = `${bulkIdContext.modIds.length} moda sıralı ID atanacak.`;
+    if (hintEl) hintEl.textContent = wikiHints[category] || 'Doğru aralık için MTA Wiki\'yi kontrol edin.';
+    if (inputEl) inputEl.value = suggestedStart;
+
+    const modal = document.getElementById('bulkIdModal');
+    if (modal) modal.classList.add('active');
+    if (inputEl) {
+        inputEl.focus();
+        inputEl.select();
+        inputEl.onkeydown = function(e) {
+            if (e.key === 'Enter') confirmBulkAssignIds();
+        };
+    }
+}
+
+// Toplu ID atama modalını kapat
+function closeBulkIdModal() {
+    const modal = document.getElementById('bulkIdModal');
+    if (modal) modal.classList.remove('active');
+    bulkIdContext = { category: null, modIds: [] };
+}
+
+// Modaldaki "Ata" butonuna basınca gerçek atamayı yapar
+function confirmBulkAssignIds() {
+    const { category, modIds } = bulkIdContext;
+    if (!category || modIds.length === 0) {
+        closeBulkIdModal();
+        return;
+    }
+
+    const inputEl = document.getElementById('bulkIdStartInput');
+    const startInput = inputEl ? inputEl.value.trim() : '';
+    let candidate = parseInt(startInput, 10);
+
+    if (isNaN(candidate) || candidate < 0) {
+        showToast('Geçerli bir sayı girin!', 'warning');
+        return;
+    }
+
+    const suggestedStart = candidate;
+
+    // Bu kategoride, şu an atama yapılacak modlar HARİÇ kullanımda olan ID'ler
+    const reserved = new Set();
+    modData[category].forEach((mod, key) => {
+        if (!modIds.includes(key)) reserved.add(String(mod.id));
+    });
+
+    let assignedCount = 0;
+    modIds.forEach(oldKey => {
+        const mod = modData[category].get(oldKey);
+        if (!mod) return;
+
+        while (reserved.has(String(candidate))) candidate++;
+
+        const newKey = String(candidate);
+        reserved.add(newKey);
+
+        mod.id = newKey;
+        mod.needsId = false;
+
+        if (newKey !== oldKey) {
+            modData[category].delete(oldKey);
+            modData[category].set(newKey, mod);
+        }
+
+        assignedCount++;
+        candidate++;
+    });
+
+    updateModsList(category);
+    closeBulkIdModal();
+    showToast(
+        `${assignedCount} moda ${suggestedStart}'den başlayan sıralı ID atandı. Script oluşturmadan önce bu ID'lerin gerçek GTA:SA model ID'leriyle eşleştiğini MTA Wiki'den doğrulayın.`,
+        'info'
+    );
 }
 
 // Seçili modları toplu sil
@@ -1830,7 +2058,11 @@ function downloadScript() {
             }
         }
         
-        zip.generateAsync({ type: 'blob' }).then(function(content) {
+        showZipProgress(0);
+
+        zip.generateAsync({ type: 'blob' }, function updateCallback(metadata) {
+            showZipProgress(Math.round(metadata.percent));
+        }).then(function(content) {
             const finalFileName = sanitizeFileName(outputFileName) + '.zip';
             outputFileName = sanitizeFileName(outputFileName);
 
@@ -1842,10 +2074,12 @@ function downloadScript() {
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
-            
+
+            hideZipProgress();
             showToast(`"${finalFileName}" indirildi!`, 'success');
             closePreview();
         }).catch(function(error) {
+            hideZipProgress();
             showToast('ZIP oluşturulurken hata oluştu: ' + error, 'error');
         });
     };
@@ -1855,4 +2089,23 @@ function downloadScript() {
     };
     
     document.head.appendChild(script);
+}
+
+// ============================================
+// ZIP OLUŞTURMA İLERLEME GÖSTERGESİ
+// ============================================
+function showZipProgress(percent) {
+    const overlay = document.getElementById('zipProgressOverlay');
+    const fill = document.getElementById('zipProgressFill');
+    const percentText = document.getElementById('zipProgressPercent');
+    if (!overlay) return;
+
+    overlay.classList.add('active');
+    if (fill) fill.style.width = `${percent}%`;
+    if (percentText) percentText.textContent = `%${percent}`;
+}
+
+function hideZipProgress() {
+    const overlay = document.getElementById('zipProgressOverlay');
+    if (overlay) overlay.classList.remove('active');
 }
