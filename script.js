@@ -1,5 +1,65 @@
 
 
+// ============================================
+// TOAST BİLDİRİM SİSTEMİ (sağ alt köşe infobox)
+// ============================================
+const TOAST_ICONS = { success: '✅', warning: '⚠️', error: '❌', info: 'ℹ️' };
+const TOAST_TITLES = { success: 'Başarılı', warning: 'Uyarı', error: 'Hata', info: 'Bilgi' };
+const TOAST_MAX_VISIBLE = 4;
+
+function showToast(message, type = 'info', duration) {
+    const container = document.getElementById('toastContainer');
+    if (!container) {
+        window.alert(message);
+        return;
+    }
+
+    // Aynı anda çok fazla toast birikmesin
+    while (container.children.length >= TOAST_MAX_VISIBLE) {
+        container.removeChild(container.firstElementChild);
+    }
+
+    const computedDuration = duration || Math.min(10000, Math.max(4500, message.length * 65));
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+        <div class="toast-icon">${TOAST_ICONS[type] || TOAST_ICONS.info}</div>
+        <div class="toast-content">
+            <div class="toast-title">${TOAST_TITLES[type] || TOAST_TITLES.info}</div>
+            <div class="toast-message"></div>
+        </div>
+        <button class="toast-close" aria-label="Kapat">&times;</button>
+        <div class="toast-progress" style="animation-duration: ${computedDuration}ms;"></div>
+    `;
+    toast.querySelector('.toast-message').textContent = message;
+
+    let dismissTimer;
+    const removeToast = () => {
+        if (!toast.isConnected) return;
+        clearTimeout(dismissTimer);
+        toast.classList.add('removing');
+        setTimeout(() => toast.remove(), 220);
+    };
+
+    toast.querySelector('.toast-close').addEventListener('click', removeToast);
+
+    dismissTimer = setTimeout(removeToast, computedDuration);
+
+    // Üzerine gelince zamanlayıcıyı durdur, ayrılınca kalan süreyle devam et
+    const progressEl = toast.querySelector('.toast-progress');
+    toast.addEventListener('mouseenter', () => {
+        clearTimeout(dismissTimer);
+        progressEl.style.animationPlayState = 'paused';
+    });
+    toast.addEventListener('mouseleave', () => {
+        progressEl.style.animationPlayState = 'running';
+        dismissTimer = setTimeout(removeToast, 2000);
+    });
+
+    container.appendChild(toast);
+}
+
 // Silah Listesi
 const WEAPON_LIST = {
     331: "Brassknuckle",
@@ -52,8 +112,47 @@ const modData = {
     weapons: new Map()
 };
 
+// Gerekli dosyaları (DFF/TXD) henüz tamamlanmamış modlar tamamlanana kadar burada
+// bekler ve "Yüklenen Modlar" listesinde GÖSTERİLMEZ. Eksik dosya tamamlandığında
+// otomatik olarak modData'ya taşınır.
+const pendingModData = {
+    vehicles: new Map(),
+    characters: new Map(),
+    objects: new Map(),
+    weapons: new Map()
+};
+
+// Her kategori için zorunlu dosya uzantıları. Obje kategorisinde COL isteğe bağlıdır,
+// bu yüzden zorunlular listesine dahil edilmez.
+const REQUIRED_EXTENSIONS = {
+    vehicles: ['dff', 'txd'],
+    characters: ['dff', 'txd'],
+    weapons: ['dff', 'txd'],
+    objects: ['dff', 'txd']
+};
+
+function isModComplete(mod, category) {
+    const required = REQUIRED_EXTENSIONS[category] || [];
+    return required.every(ext => !!mod.files[ext]);
+}
+
+function getMissingExtensions(mod, category) {
+    const required = REQUIRED_EXTENSIONS[category] || [];
+    return required.filter(ext => !mod.files[ext]);
+}
+
+// Verilen key için (aktif veya bekleyen listede) mevcut mod kaydını döndürür
+function getExistingModEntry(category, key) {
+    if (modData[category].has(key)) return { store: 'active', entry: modData[category].get(key) };
+    if (pendingModData[category].has(key)) return { store: 'pending', entry: pendingModData[category].get(key) };
+    return null;
+}
+
+// İndirilecek ZIP dosyasının adı (kullanıcı önizleme ekranında değiştirebilir)
+let outputFileName = 'MTA_ModLoader';
+
 // Loader ayarları
-const loaderSettings = {
+const DEFAULT_LOADER_SETTINGS = {
     style: 'panel',
     primaryColor: '#2196F3',
     bgColor: '#222222',
@@ -61,8 +160,39 @@ const loaderSettings = {
     position: 'bottom',
     barWidth: 40,
     fontSize: 14,
-    modDelay: 1
+    modDelay: 1,
+    nativeDownload: false,
+    modToggleEnabled: false,
+    fullscreenBgEnabled: false,
+    bgSlideInterval: 5
 };
+
+const loaderSettings = { ...DEFAULT_LOADER_SETTINGS };
+
+// Tam ekran arkaplan slaytı için seçilen görseller (en fazla 5 adet).
+// Her öğe: { file: File, dataUrl: string }
+const MAX_BG_IMAGES = 5;
+let bgImages = [];
+
+// Tam ekran arkaplan slaytına eşlik eden opsiyonel MP3 arka plan müziği.
+// { file: File } veya seçilmemişse null.
+let bgAudio = null;
+
+// Seçilen mp3 dosyasını "Loader/bgmusic.uzantı" yoluyla eşleştirir.
+function getBgAudioEntry() {
+    if (!bgAudio) return null;
+    return { path: 'Loader/bgmusic.mp3', fileName: 'bgmusic.mp3', file: bgAudio.file };
+}
+
+// Yüklenen arkaplan görsellerini "Loader/bgN.uzantı" yollarıyla eşleştirir.
+// Hem Lua script üretiminde hem de meta.xml/ZIP paketlemede kullanılır.
+function getBgImageEntries() {
+    return bgImages.map((img, idx) => {
+        const rawExt = (img.file.name.split('.').pop() || 'jpg').toLowerCase();
+        const ext = /^(jpg|jpeg|png|bmp)$/.test(rawExt) ? rawExt : 'jpg';
+        return { path: `Loader/bg${idx + 1}.${ext}`, fileName: `bg${idx + 1}.${ext}`, file: img.file };
+    });
+}
 
 // Hex renk kodunu RGB'ye çevir (MTA tocolor() için)
 function hexToRgb(hex) {
@@ -79,8 +209,31 @@ document.addEventListener('DOMContentLoaded', function() {
     setupTabs();
     setupFileInputs();
     setupDragDrop();
+    setupBgImageInputs();
+    setupBgAudioInput();
     updateLoaderPreview();
 });
+
+// Ayarlar bölümlerindeki "ℹ️ Bilgi" butonu: açıklama metnini aç/kapat
+function toggleInfo(descId, btn) {
+    const desc = document.getElementById(descId);
+    if (!desc) return;
+
+    const isHidden = desc.hasAttribute('hidden');
+    if (isHidden) {
+        desc.removeAttribute('hidden');
+        if (btn) {
+            btn.classList.add('active');
+            btn.textContent = '✕ Kapat';
+        }
+    } else {
+        desc.setAttribute('hidden', '');
+        if (btn) {
+            btn.classList.remove('active');
+            btn.textContent = 'ℹ️ Bilgi';
+        }
+    }
+}
 
 // Tab sistemi
 function setupTabs() {
@@ -151,6 +304,169 @@ function preventDefaults(e) {
     e.stopPropagation();
 }
 
+// ============================================
+// TAM EKRAN ARKAPLAN SLAYTI - GÖRSEL SLOTLARI
+// ============================================
+let bgImageFileInput;
+
+function setupBgImageInputs() {
+    bgImageFileInput = document.getElementById('bgImageFileInput');
+    if (!bgImageFileInput) return;
+
+    bgImageFileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        e.target.value = '';
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            showToast('Lütfen bir görsel dosyası seçin (jpg, png vb.)', 'error');
+            return;
+        }
+        if (bgImages.length >= MAX_BG_IMAGES) {
+            showToast(`En fazla ${MAX_BG_IMAGES} arkaplan görseli ekleyebilirsiniz.`, 'warning');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            bgImages.push({ file, dataUrl: ev.target.result });
+            renderBgImageSlots();
+            updateLoaderPreview();
+
+            // Önerilen 1920x1080 boyutuna uymayan görseller için bilgilendirme (engelleme yok,
+            // çünkü oyun içinde görsel her çözünürlüğe "cover" mantığıyla otomatik ölçeklenir).
+            const checkImg = new Image();
+            checkImg.onload = function() {
+                if (checkImg.naturalWidth !== 1920 || checkImg.naturalHeight !== 1080) {
+                    showToast(`Önerilen boyut 1920x1080. Seçtiğiniz görsel ${checkImg.naturalWidth}x${checkImg.naturalHeight}; yine de eklendi, farklı çözünürlükte de düzgün gösterilecektir.`, 'warning');
+                }
+            };
+            checkImg.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    renderBgImageSlots();
+}
+
+function triggerBgImagePicker() {
+    if (bgImages.length >= MAX_BG_IMAGES) {
+        showToast(`En fazla ${MAX_BG_IMAGES} arkaplan görseli ekleyebilirsiniz.`, 'warning');
+        return;
+    }
+    bgImageFileInput.click();
+}
+
+function removeBgImage(index) {
+    bgImages.splice(index, 1);
+    renderBgImageSlots();
+    updateLoaderPreview();
+}
+
+function renderBgImageSlots() {
+    const container = document.getElementById('bgImageSlots');
+    if (!container) return;
+
+    let html = '';
+    for (let i = 0; i < MAX_BG_IMAGES; i++) {
+        const img = bgImages[i];
+        if (img) {
+            html += `
+                <div class="bg-image-slot filled">
+                    <img src="${img.dataUrl}" alt="Arkaplan ${i + 1}">
+                    <span class="bg-image-slot-index">${i + 1}</span>
+                    <button type="button" class="bg-image-slot-remove" onclick="removeBgImage(${i})" title="Kaldır">&times;</button>
+                </div>
+            `;
+        } else {
+            html += `
+                <div class="bg-image-slot" onclick="triggerBgImagePicker()">
+                    <div class="bg-image-slot-placeholder">
+                        <span class="plus-icon">+</span>
+                        <span>Resim ${i + 1}</span>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    container.innerHTML = html;
+}
+
+// ============================================
+// TAM EKRAN ARKAPLAN SLAYTI - OPSİYONEL MP3 ARKA PLAN MÜZİĞİ
+// ============================================
+let bgAudioFileInput;
+
+function setupBgAudioInput() {
+    bgAudioFileInput = document.getElementById('bgAudioFileInput');
+    if (!bgAudioFileInput) return;
+
+    bgAudioFileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        e.target.value = '';
+        if (!file) return;
+
+        const isMp3 = file.type === 'audio/mpeg' || /\.mp3$/i.test(file.name);
+        if (!isMp3) {
+            showToast('Lütfen bir MP3 dosyası seçin.', 'error');
+            return;
+        }
+
+        bgAudio = { file };
+        renderBgAudioInfo();
+        showToast(`"${file.name}" arka plan müziği olarak eklendi.`, 'success');
+    });
+
+    renderBgAudioInfo();
+}
+
+function triggerBgAudioPicker() {
+    if (bgAudioFileInput) bgAudioFileInput.click();
+}
+
+function removeBgAudio() {
+    bgAudio = null;
+    renderBgAudioInfo();
+}
+
+function renderBgAudioInfo() {
+    const nameEl = document.getElementById('bgAudioFileName');
+    const removeBtn = document.getElementById('bgAudioRemoveBtn');
+    if (!nameEl || !removeBtn) return;
+
+    if (bgAudio) {
+        nameEl.textContent = `🎵 ${bgAudio.file.name}`;
+        nameEl.classList.add('has-file');
+        removeBtn.style.display = 'inline-flex';
+    } else {
+        nameEl.textContent = 'Seçilmedi — yükleme ekranı sessiz olur';
+        nameEl.classList.remove('has-file');
+        removeBtn.style.display = 'none';
+    }
+}
+
+// Ayarları varsayılana sıfırla
+function resetSettings() {
+    if (!confirm('Tüm script ayarlarını varsayılana sıfırlamak istediğinize emin misiniz?')) {
+        return;
+    }
+
+    document.getElementById('nativeDownloadToggle').checked = DEFAULT_LOADER_SETTINGS.nativeDownload;
+    document.getElementById('modToggleToggle').checked = DEFAULT_LOADER_SETTINGS.modToggleEnabled;
+    document.getElementById('loaderStyle').value = DEFAULT_LOADER_SETTINGS.style;
+    document.getElementById('primaryColor').value = DEFAULT_LOADER_SETTINGS.primaryColor;
+    document.getElementById('bgColor').value = DEFAULT_LOADER_SETTINGS.bgColor;
+    document.getElementById('textColor').value = DEFAULT_LOADER_SETTINGS.textColor;
+    document.getElementById('loaderPosition').value = DEFAULT_LOADER_SETTINGS.position;
+    document.getElementById('barWidthRange').value = DEFAULT_LOADER_SETTINGS.barWidth;
+    document.getElementById('fontSizeRange').value = DEFAULT_LOADER_SETTINGS.fontSize;
+    document.getElementById('modDelayRange').value = DEFAULT_LOADER_SETTINGS.modDelay;
+    document.getElementById('fullscreenBgToggle').checked = DEFAULT_LOADER_SETTINGS.fullscreenBgEnabled;
+    document.getElementById('bgSlideIntervalRange').value = DEFAULT_LOADER_SETTINGS.bgSlideInterval;
+
+    updateLoaderPreview();
+}
+
 // Loader ön izlemesini güncelle
 function updateLoaderPreview() {
     const style = document.getElementById('loaderStyle').value;
@@ -163,6 +479,10 @@ function updateLoaderPreview() {
     const barWidth = document.getElementById('barWidthRange').value;
     const fontSize = document.getElementById('fontSizeRange').value;
     const modDelay = document.getElementById('modDelayRange').value;
+    const nativeDownload = document.getElementById('nativeDownloadToggle').checked;
+    const modToggleEnabled = document.getElementById('modToggleToggle').checked;
+    const fullscreenBgEnabled = document.getElementById('fullscreenBgToggle').checked;
+    const bgSlideInterval = document.getElementById('bgSlideIntervalRange').value;
     
     document.getElementById('primaryColorValue').textContent = primaryColor;
     document.getElementById('bgColorValue').textContent = bgColor;
@@ -170,6 +490,7 @@ function updateLoaderPreview() {
     document.getElementById('barWidthValue').textContent = `${barWidth}%`;
     document.getElementById('fontSizeValue').textContent = `${fontSize}px`;
     document.getElementById('modDelayValue').textContent = modDelay;
+    document.getElementById('bgSlideIntervalValue').textContent = bgSlideInterval;
     
     loaderSettings.style = style;
     loaderSettings.primaryColor = primaryColor;
@@ -179,8 +500,31 @@ function updateLoaderPreview() {
     loaderSettings.barWidth = parseInt(barWidth, 10);
     loaderSettings.fontSize = parseInt(fontSize, 10);
     loaderSettings.modDelay = parseFloat(modDelay);
+    loaderSettings.nativeDownload = nativeDownload;
+    loaderSettings.modToggleEnabled = modToggleEnabled;
+    loaderSettings.fullscreenBgEnabled = fullscreenBgEnabled;
+    loaderSettings.bgSlideInterval = parseFloat(bgSlideInterval);
+
+    // Arkaplan slaytı gövdesi sadece açıkken (ve native indirme kapalıyken) etkileşimli olsun
+    const fullscreenBgBody = document.getElementById('fullscreenBgBody');
+    if (fullscreenBgBody) fullscreenBgBody.classList.toggle('is-off', !fullscreenBgEnabled);
+
+    // Native indirme açıkken loader tasarım ayarları geçersiz kalır -> görsel olarak devre dışı bırak
+    const disableIds = ['loaderStyleSection', 'colorsSection', 'positionSection', 'behaviorSection', 'previewSection', 'fullscreenBgSection'];
+    disableIds.forEach(id => {
+        const section = document.getElementById(id);
+        if (section) section.classList.toggle('is-disabled', nativeDownload);
+    });
+
+    if (nativeDownload) {
+        return;
+    }
     
-    preview.style.background = bgColor;
+    if (fullscreenBgEnabled && bgImages.length > 0) {
+        preview.style.background = `url(${bgImages[0].dataUrl}) center / cover no-repeat`;
+    } else {
+        preview.style.background = bgColor;
+    }
     preview.style.alignItems = position === 'top' ? 'flex-start' : (position === 'center' ? 'center' : 'flex-end');
     
     if (style === 'panel') {
@@ -259,7 +603,8 @@ function addAnimationStyles() {
 function handleFiles(files, category) {
     const fileArray = Array.from(files);
     const validExtensions = category === 'objects' ? ['dff', 'txd', 'col'] : ['dff', 'txd'];
-    
+    const touchedKeys = new Set();
+
     fileArray.forEach(file => {
         const filename = file.name;
         const numericMatch = filename.match(/^(\d+)\.(dff|txd|col)$/i);
@@ -268,53 +613,125 @@ function handleFiles(files, category) {
         if (numericMatch && validExtensions.includes(numericMatch[2].toLowerCase())) {
             const modId = numericMatch[1];
             const extension = numericMatch[2].toLowerCase();
-            
             const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-            
-            if (!modData[category].has(modId)) {
-                modData[category].set(modId, {
-                    id: modId,
-                    name: `${category === 'objects' ? 'Obje' : category === 'weapons' ? 'Silah' : category === 'vehicles' ? 'Araç' : 'Karakter'} ${modId}`,
-                    files: {},
-                    sizes: {},
-                    weaponId: null,
-                    weaponName: null,
-                    needsId: false
-                });
-            }
-            
-            const modEntry = modData[category].get(modId);
+            const key = modId;
+
+            const existing = getExistingModEntry(category, key);
+            const modEntry = existing ? existing.entry : {
+                id: modId,
+                name: `${category === 'objects' ? 'Obje' : category === 'weapons' ? 'Silah' : category === 'vehicles' ? 'Araç' : 'Karakter'} ${modId}`,
+                files: {},
+                sizes: {},
+                weaponId: null,
+                weaponName: null,
+                needsId: false
+            };
+
             modEntry.files[extension] = file;
             modEntry.sizes[extension] = sizeMB;
+
+            // Tamlık kontrolü yapılana kadar geçici olarak kaydını koru
+            if (existing && existing.store === 'active') {
+                modData[category].set(key, modEntry);
+            } else {
+                pendingModData[category].set(key, modEntry);
+            }
+
+            touchedKeys.add(key);
         } else if (looseMatch && validExtensions.includes(looseMatch[2].toLowerCase())) {
             // Dosya adında sayısal ID yok (örn. "deagle.dff") -> ID'yi kullanıcı elle girecek
             const baseName = looseMatch[1];
             const extension = looseMatch[2].toLowerCase();
-            const tempKey = `noid_${baseName.toLowerCase()}`;
+            const key = `noid_${baseName.toLowerCase()}`;
             const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-            
-            if (!modData[category].has(tempKey)) {
-                modData[category].set(tempKey, {
-                    id: '',
-                    name: `${category === 'objects' ? 'Obje' : category === 'weapons' ? 'Silah' : category === 'vehicles' ? 'Araç' : 'Karakter'} ${baseName}`,
-                    files: {},
-                    sizes: {},
-                    weaponId: null,
-                    weaponName: null,
-                    needsId: true
-                });
-            }
-            
-            const modEntry = modData[category].get(tempKey);
+
+            const existing = getExistingModEntry(category, key);
+            const modEntry = existing ? existing.entry : {
+                id: '',
+                name: `${category === 'objects' ? 'Obje' : category === 'weapons' ? 'Silah' : category === 'vehicles' ? 'Araç' : 'Karakter'} ${baseName}`,
+                files: {},
+                sizes: {},
+                weaponId: null,
+                weaponName: null,
+                needsId: true
+            };
+
             modEntry.files[extension] = file;
             modEntry.sizes[extension] = sizeMB;
+
+            if (existing && existing.store === 'active') {
+                modData[category].set(key, modEntry);
+            } else {
+                pendingModData[category].set(key, modEntry);
+            }
+
+            touchedKeys.add(key);
         } else {
             const validExts = category === 'objects' ? '.dff, .txd, .col' : '.dff, .txd';
-            alert(`❌ Hatalı dosya adı: ${filename}\n✅ Format: 512${validExts} olmalıdır.`);
+            showToast(`Hatalı dosya adı: ${filename}\nFormat: 512${validExts} olmalıdır.`, 'error');
         }
     });
-    
+
+    // Zorunlu dosyaların (DFF + TXD) tamamı yüklendi mi kontrol et.
+    // Tamamsa mod aktif listeye taşınır, değilse bekleyenlerde kalır ve uyarı verilir.
+    const incompleteMessages = [];
+    touchedKeys.forEach(key => {
+        const existing = getExistingModEntry(category, key);
+        if (!existing) return;
+        const { entry } = existing;
+
+        if (isModComplete(entry, category)) {
+            pendingModData[category].delete(key);
+            modData[category].set(key, entry);
+        } else {
+            modData[category].delete(key);
+            pendingModData[category].set(key, entry);
+
+            const missing = getMissingExtensions(entry, category)
+                .map(ext => ext.toUpperCase())
+                .join(' ve ');
+            const modLabel = entry.id ? `ID ${entry.id}` : entry.name;
+            incompleteMessages.push(`${modLabel}: ${missing} dosyası eksik`);
+        }
+    });
+
+    if (incompleteMessages.length > 0) {
+        const categoryLabel = CATEGORY_LABELS[category] || category;
+        showToast(
+            `${categoryLabel} modu için zorunlu dosyaların (DFF + TXD) tamamı yüklenmedi, bu yüzden listeye eklenmedi:\n${incompleteMessages.join('\n')}\nEksik dosyayı ekleyince mod otomatik olarak listeye eklenecek.`,
+            'warning'
+        );
+    }
+
     updateModsList(category);
+}
+
+// Tüm kategorilerdeki (Araç/Karakter/Obje/Silah) ID'leri toplar ve her ID'nin
+// hangi mod(lar) tarafından kullanıldığını döndürür. Aynı ID farklı kategorilerde
+// kullanılırsa (örn. bir Obje ile bir Silah aynı ID'yi paylaşırsa) bu, oyunda
+// modellerin birbirinin üzerine yazılmasına sebep olur.
+const CATEGORY_LABELS = { vehicles: 'Araç', characters: 'Karakter', objects: 'Obje', weapons: 'Silah' };
+
+function getGlobalIdOwners() {
+    const idOwners = new Map();
+    ['vehicles', 'characters', 'objects', 'weapons'].forEach(category => {
+        modData[category].forEach(mod => {
+            if (!mod.id) return; // henüz ID girilmemiş modlar çakışma kontrolüne dahil edilmez
+            if (!idOwners.has(mod.id)) idOwners.set(mod.id, []);
+            idOwners.get(mod.id).push({ category, categoryLabel: CATEGORY_LABELS[category], name: mod.name });
+        });
+    });
+    return idOwners;
+}
+
+// Script oluşturmadan hemen önce çalıştırılan kesin/otoriter kontrol
+function findIdConflicts() {
+    const idOwners = getGlobalIdOwners();
+    const conflicts = [];
+    idOwners.forEach((owners, id) => {
+        if (owners.length > 1) conflicts.push({ id, owners });
+    });
+    return conflicts;
 }
 
 // Modlar listesini güncelle
@@ -330,6 +747,8 @@ function updateModsList(category) {
     }
     
     if (selectAllBox) selectAllBox.checked = false;
+
+    const idOwners = getGlobalIdOwners();
     
     let html = '';
     
@@ -355,10 +774,29 @@ function updateModsList(category) {
         }
         
         const idInputValue = mod.needsId ? '' : modId;
-        const idInputClass = mod.needsId ? 'mod-item-id-input missing' : 'mod-item-id-input';
         const idPlaceholder = mod.needsId ? 'ID girin (örn: 512)' : '';
-        const idWarning = mod.needsId ? '<span class="mod-item-id-warning">⚠️ Dosya adında ID yok, ID girin</span>' : '';
-        const modItemClass = mod.needsId ? 'mod-item needs-id' : 'mod-item';
+
+        const owners = mod.id ? idOwners.get(mod.id) : null;
+        const hasConflict = !mod.needsId && owners && owners.length > 1;
+
+        let idInputClass = 'mod-item-id-input';
+        let idWarning = '';
+        let modItemClass = 'mod-item';
+
+        if (mod.needsId) {
+            idInputClass += ' missing';
+            idWarning = '<span class="mod-item-id-warning">⚠️ Dosya adında ID yok, ID girin</span>';
+            modItemClass += ' needs-id';
+        } else if (hasConflict) {
+            idInputClass += ' conflict';
+            const otherOwners = owners.filter(o => !(o.category === category && o.name === mod.name));
+            const otherLabels = (otherOwners.length > 0 ? otherOwners : owners)
+                .map(o => o.categoryLabel)
+                .filter((label, idx, arr) => arr.indexOf(label) === idx)
+                .join(', ');
+            idWarning = `<span class="mod-item-id-warning conflict">⚠️ Bu ID başka bir modda kullanılıyor (${otherLabels})</span>`;
+            modItemClass += ' id-conflict';
+        }
         
         html += `
             <div class="${modItemClass}">
@@ -403,7 +841,7 @@ function updateModWeapon(modId, weaponId) {
     
     // Seçilen silahın ID'si başka bir modda zaten kullanılıyorsa uyar
     if (weaponId !== modId && modData.weapons.has(weaponId)) {
-        alert(`⚠️ "${weaponId}" ID'si zaten başka bir silah modu tarafından kullanılıyor! Lütfen önce o modu silin veya farklı bir silah seçin.`);
+        showToast(`"${weaponId}" ID'si zaten başka bir silah modu tarafından kullanılıyor! Lütfen önce o modu silin veya farklı bir silah seçin.`, 'warning');
         updateModsList('weapons');
         return;
     }
@@ -429,7 +867,7 @@ function updateModId(category, oldId, newId) {
     newId = newId.trim();
     
     if (!/^\d+$/.test(newId)) {
-        alert('⚠️ ID sadece rakamlardan oluşmalıdır!');
+        showToast('ID sadece rakamlardan oluşmalıdır!', 'warning');
         updateModsList(category);
         return;
     }
@@ -437,7 +875,7 @@ function updateModId(category, oldId, newId) {
     if (newId === oldId) return;
     
     if (modData[category].has(newId)) {
-        alert(`⚠️ "${newId}" ID'si zaten kullanılıyor! Lütfen farklı bir ID girin.`);
+        showToast(`"${newId}" ID'si zaten kullanılıyor! Lütfen farklı bir ID girin.`, 'warning');
         updateModsList(category);
         return;
     }
@@ -489,7 +927,7 @@ function deleteSelectedMods(category) {
     const checkedBoxes = document.querySelectorAll(`#${category}List .mod-item-checkbox:checked`);
     
     if (checkedBoxes.length === 0) {
-        alert('⚠️ Lütfen silmek istediğiniz modları işaretleyin!');
+        showToast('Lütfen silmek istediğiniz modları işaretleyin!', 'warning');
         return;
     }
     
@@ -508,6 +946,11 @@ function clearAllMods() {
         modData.characters.clear();
         modData.objects.clear();
         modData.weapons.clear();
+
+        pendingModData.vehicles.clear();
+        pendingModData.characters.clear();
+        pendingModData.objects.clear();
+        pendingModData.weapons.clear();
         
         updateModsList('vehicles');
         updateModsList('characters');
@@ -525,7 +968,7 @@ function generateScript() {
         modData.weapons.size > 0;
     
     if (!hasAnyMods) {
-        alert('⚠️ Lütfen en az bir mod ekleyin!');
+        showToast('Lütfen en az bir mod ekleyin!', 'warning');
         return;
     }
     
@@ -540,13 +983,23 @@ function generateScript() {
     });
     
     if (missingIdMods.length > 0) {
-        alert(`⚠️ Şu modların dosya adında ID numarası yok, lütfen "Yüklenen Modlar" listesinden ID girin:\n\n${missingIdMods.join('\n')}`);
+        showToast(`Şu modların dosya adında ID numarası yok, lütfen "Yüklenen Modlar" listesinden ID girin:\n${missingIdMods.join('\n')}`, 'warning');
         return;
     }
     
     const unassignedWeapons = Array.from(modData.weapons.values()).filter(mod => !mod.weaponId);
     if (unassignedWeapons.length > 0) {
-        alert(`⚠️ ${unassignedWeapons.length} silah modu için henüz silah seçilmedi. Lütfen "Yüklenen Modlar" listesinden her mod için bir silah seçin.`);
+        showToast(`${unassignedWeapons.length} silah modu için henüz silah seçilmedi. Lütfen "Yüklenen Modlar" listesinden her mod için bir silah seçin.`, 'warning');
+        return;
+    }
+
+    const idConflicts = findIdConflicts();
+    if (idConflicts.length > 0) {
+        const conflictLines = idConflicts.map(c => {
+            const owners = c.owners.map(o => `${o.categoryLabel}: ${o.name}`).join('  ↔  ');
+            return `ID ${c.id}  →  ${owners}`;
+        }).join('\n');
+        showToast(`ID Çakışması Tespit Edildi! Aşağıdaki ID'ler birden fazla mod tarafından kullanılıyor, bu durumda oyunda modeller birbirinin üzerine yazılır:\n${conflictLines}`, 'error');
         return;
     }
     
@@ -564,6 +1017,12 @@ function generateClientLua() {
     const primaryRgb = hexToRgb(loaderSettings.primaryColor);
     const bgRgb = hexToRgb(loaderSettings.bgColor);
     const textRgb = hexToRgb(loaderSettings.textColor);
+    // Tam ekran arkaplan slaytı sadece özel loader arayüzü ile birlikte anlamlıdır (native indirmede yok)
+    const bgSlideEnabled = loaderSettings.fullscreenBgEnabled && !loaderSettings.nativeDownload && bgImages.length > 0;
+    const bgImageEntries = bgSlideEnabled ? getBgImageEntries() : [];
+    // Arka plan müziği, tam ekran arkaplan slaytı açıkken ve bir mp3 seçilmişse etkin olur.
+    const audioEnabled = loaderSettings.fullscreenBgEnabled && !loaderSettings.nativeDownload && bgAudio !== null;
+    const bgAudioEntry = audioEnabled ? getBgAudioEntry() : null;
     
     let lua = `-- ============================================\n`;
     lua += `-- MTA San Andreas Mod Loader\n`;
@@ -686,6 +1145,14 @@ function generateClientLua() {
         lua += `\n`;
     }
     
+    if (loaderSettings.nativeDownload) {
+        lua += generateNativeDownloadLua();
+        if (loaderSettings.modToggleEnabled) {
+            lua += generateModToggleLua();
+        }
+        return lua;
+    }
+
     // Yükleme sistemi
     lua += `-- ============================================\n`;
     lua += `-- YÜKLEME SİSTEMİ\n`;
@@ -697,6 +1164,9 @@ function generateClientLua() {
     lua += `    totalMods = #modsToLoad\n`;
     lua += `    currentMod = 0\n`;
     lua += `    isLoading = true\n`;
+    if (audioEnabled) {
+        lua += `    startBgMusic()\n`;
+    }
     lua += `    loadedSize = 0\n`;
     lua += `    totalSize = 0\n`;
     lua += `    \n`;
@@ -731,21 +1201,26 @@ function generateClientLua() {
     lua += `        downloadModFiles()\n`;
     lua += `    else\n`;
     lua += `        isLoading = false\n`;
+    if (audioEnabled) {
+        lua += `        stopBgMusic()\n`;
+    }
     lua += `        outputDebugString("[Mod Loader] ✓ Tüm modlar başarıyla indirildi ve yüklendi!", 3, 0, 255, 0)\n`;
     lua += `    end\n`;
     lua += `end\n\n`;
     
-    lua += `-- Kuyruktaki bir sonraki dosyayı indirir (zaten diskte varsa direkt uygular)\n`;
+    lua += `-- Kuyruktaki bir sonraki dosyayı indirir.\n`;
+    lua += `-- NOT: Dosya oyuncunun diskinde önceden (önceki bir oturumdan) mevcut olsa\n`;
+    lua += `-- bile downloadFile() HER ZAMAN çağrılır. fileExists() true dönse dahi MTA bu\n`;
+    lua += `-- dosyayı bu resource oturumu için henüz "indirildi" olarak işaretlememiş\n`;
+    lua += `-- olabilir; dosya doğrudan engineLoadDFF/TXD ile açılmaya çalışılırsa\n`;
+    lua += `-- "Attempt to load ... before onClientFileDownloadComplete event" uyarısı\n`;
+    lua += `-- oluşur. downloadFile() çağrıldığında dosya zaten güncelse gerçek bir ağ\n`;
+    lua += `-- indirmesi yapılmaz ve onClientFileDownloadComplete olayı anında (aynı\n`;
+    lua += `-- tick'te) tetiklenir; yani performans kaybı olmadan uyarı da önlenmiş olur.\n`;
     lua += `function downloadModFiles()\n`;
     lua += `    if #pendingDownloads > 0 then\n`;
     lua += `        local entry = pendingDownloads[1]\n`;
-    lua += `        if fileExists(entry.file) then\n`;
-    lua += `            applyDownloadedFile(entry)\n`;
-    lua += `            table.remove(pendingDownloads, 1)\n`;
-    lua += `            downloadModFiles()\n`;
-    lua += `        else\n`;
-    lua += `            downloadFile(entry.file)\n`;
-    lua += `        end\n`;
+    lua += `        downloadFile(entry.file)\n`;
     lua += `    else\n`;
     lua += `        setTimer(loadNextMod, modSwitchDelay, 1)\n`;
     lua += `    end\n`;
@@ -804,7 +1279,90 @@ function generateClientLua() {
     lua += `-- ============================================\n\n`;
     
     lua += `local screenW, screenH = guiGetScreenSize()\n\n`;
-    
+
+    if (bgSlideEnabled) {
+        lua += `-- ============================================\n`;
+        lua += `-- TAM EKRAN ARKAPLAN SLAYTI\n`;
+        lua += `-- ============================================\n\n`;
+
+        lua += `local bgImagePaths = {\n`;
+        bgImageEntries.forEach((entry) => {
+            lua += `    "${entry.path}",\n`;
+        });
+        lua += `}\n`;
+        lua += `local bgSlideInterval = ${Math.max(1000, Math.round(loaderSettings.bgSlideInterval * 1000))} -- ms cinsinden görseller arası geçiş süresi\n`;
+        lua += `local bgTextures = {}\n`;
+        lua += `local bgCurrentIndex = 1\n\n`;
+
+        lua += `-- Arkaplan görselleri meta.xml'de download="true" ile paketlenir, yani resource\n`;
+        lua += `-- başlamadan önce oyuncuda hazır olurlar; bu yüzden mod dosyaları gibi manuel\n`;
+        lua += `-- indirme kuyruğu/onClientFileDownloadComplete beklemesine gerek yoktur.\n`;
+        lua += `local function loadBgTextures()\n`;
+        lua += `    for i, path in ipairs(bgImagePaths) do\n`;
+        lua += `        local tex = dxCreateTexture(path)\n`;
+        lua += `        if tex then\n`;
+        lua += `            table.insert(bgTextures, tex)\n`;
+        lua += `        else\n`;
+        lua += `            outputDebugString("[HATA] Arkaplan görseli yüklenemedi: " .. path, 3, 255, 0, 0)\n`;
+        lua += `        end\n`;
+        lua += `    end\n`;
+        lua += `    if #bgTextures > 1 then\n`;
+        lua += `        setTimer(function()\n`;
+        lua += `            bgCurrentIndex = (bgCurrentIndex % #bgTextures) + 1\n`;
+        lua += `        end, bgSlideInterval, 0)\n`;
+        lua += `    end\n`;
+        lua += `end\n`;
+        lua += `addEventHandler("onClientResourceStart", resourceRoot, function()\n`;
+        lua += `    loadBgTextures()\n`;
+        lua += `end)\n\n`;
+
+        lua += `-- Görseli oranını bozmadan ekranı uçtan uca kaplayacak şekilde (cover/crop)\n`;
+        lua += `-- çizer; böylece 1920x1080 dışındaki her ekran çözünürlüğünde de boşluk kalmaz.\n`;
+        lua += `local function drawBgSlideshow()\n`;
+        lua += `    local tex = bgTextures[bgCurrentIndex]\n`;
+        lua += `    if not tex then return end\n`;
+        lua += `    local texW, texH = dxGetMaterialSize(tex)\n`;
+        lua += `    if not texW or texW == 0 or not texH or texH == 0 then return end\n`;
+        lua += `    local scale = math.max(screenW / texW, screenH / texH)\n`;
+        lua += `    local drawW, drawH = texW * scale, texH * scale\n`;
+        lua += `    local drawX, drawY = (screenW - drawW) / 2, (screenH - drawH) / 2\n`;
+        lua += `    dxDrawImage(drawX, drawY, drawW, drawH, tex)\n`;
+        lua += `end\n\n`;
+    }
+
+    if (audioEnabled) {
+        lua += `-- ============================================\n`;
+        lua += `-- ARKA PLAN MÜZİĞİ (opsiyonel MP3)\n`;
+        lua += `-- ============================================\n\n`;
+
+        lua += `local bgMusicPath = "${bgAudioEntry.path}"\n`;
+        lua += `local bgMusicSound = nil\n\n`;
+
+        lua += `-- Müzik dosyası meta.xml'de download="true" ile paketlenir, yani resource\n`;
+        lua += `-- başlamadan önce oyuncuda hazır olur; yükleme başladığında çalınır, yükleme\n`;
+        lua += `-- bittiğinde durdurulur.\n`;
+        lua += `function startBgMusic()\n`;
+        lua += `    if bgMusicSound then return end\n`;
+        lua += `    bgMusicSound = playSound(bgMusicPath, true)\n`;
+        lua += `    if bgMusicSound then\n`;
+        lua += `        setSoundVolume(bgMusicSound, 0.6)\n`;
+        lua += `    else\n`;
+        lua += `        outputDebugString("[HATA] Arka plan müziği yüklenemedi: " .. bgMusicPath, 3, 255, 0, 0)\n`;
+        lua += `    end\n`;
+        lua += `end\n\n`;
+
+        lua += `function stopBgMusic()\n`;
+        lua += `    if bgMusicSound and isElement(bgMusicSound) then\n`;
+        lua += `        stopSound(bgMusicSound)\n`;
+        lua += `    end\n`;
+        lua += `    bgMusicSound = nil\n`;
+        lua += `end\n\n`;
+
+        lua += `addEventHandler("onClientResourceStop", resourceRoot, function()\n`;
+        lua += `    stopBgMusic()\n`;
+        lua += `end)\n\n`;
+    }
+
     lua += `local function getBarGeometry(barHeight)\n`;
     lua += `    local barWidth = screenW * (barWidthPercent / 100)\n`;
     lua += `    local barX = (screenW - barWidth) / 2\n`;
@@ -909,25 +1467,222 @@ function generateClientLua() {
     
     lua += `addEventHandler("onClientRender", root, function()\n`;
     lua += `    if isLoading then\n`;
+    if (bgSlideEnabled) {
+        lua += `        drawBgSlideshow()\n`;
+    }
     lua += `        drawLoaderUI()\n`;
     lua += `    end\n`;
     lua += `end)\n`;
+
+    if (loaderSettings.modToggleEnabled) {
+        lua += generateModToggleLua();
+    }
     
+    return lua;
+}
+
+// MTA Native İndirme (download="true") modu için basitleştirilmiş uygulama kodu.
+// Dosyalar meta.xml'de download="true" olduğundan resource başlamadan önce MTA
+// tarafından zaten indirilmiştir; bu yüzden özel kuyruk/indirme/loading-bar
+// mantığına gerek yoktur, modeller doğrudan uygulanır.
+function generateNativeDownloadLua() {
+    let lua = `-- ============================================\n`;
+    lua += `-- MODELLERİ UYGULA (MTA NATIVE İNDİRME)\n`;
+    lua += `-- meta.xml'de download="true" olduğu için dosyalar resource\n`;
+    lua += `-- başlamadan önce MTA tarafından otomatik indirilmiştir.\n`;
+    lua += `-- ============================================\n\n`;
+
+    lua += `local function applyMod(mod)\n`;
+    lua += `    local txd = engineLoadTXD(mod.txdFile)\n`;
+    lua += `    if txd then\n`;
+    lua += `        engineImportTXD(txd, tonumber(mod.id))\n`;
+    lua += `    else\n`;
+    lua += `        outputDebugString("[HATA] TXD yüklenemedi: " .. mod.txdFile, 3, 255, 0, 0)\n`;
+    lua += `    end\n`;
+    lua += `    \n`;
+    lua += `    local dff = engineLoadDFF(mod.dffFile, tonumber(mod.id))\n`;
+    lua += `    if dff then\n`;
+    lua += `        engineReplaceModel(dff, tonumber(mod.id))\n`;
+    lua += `    else\n`;
+    lua += `        outputDebugString("[HATA] DFF yüklenemedi: " .. mod.dffFile, 3, 255, 0, 0)\n`;
+    lua += `    end\n`;
+    lua += `    \n`;
+    lua += `    if mod.colFile then\n`;
+    lua += `        local col = engineLoadCOL(mod.colFile)\n`;
+    lua += `        if col then\n`;
+    lua += `            engineReplaceCOL(col, tonumber(mod.id))\n`;
+    lua += `        else\n`;
+    lua += `            outputDebugString("[HATA] COL yüklenemedi: " .. mod.colFile, 3, 255, 0, 0)\n`;
+    lua += `        end\n`;
+    lua += `    end\n`;
+    lua += `    \n`;
+    lua += `    outputDebugString("[Mod Loader] Uygulandı: " .. mod.name .. " (ID: " .. mod.id .. ")", 3, 0, 255, 0)\n`;
+    lua += `end\n\n`;
+
+    lua += `addEventHandler("onClientResourceStart", resourceRoot, function()\n`;
+    lua += `    for i, mod in ipairs(modsToLoad) do\n`;
+    lua += `        applyMod(mod)\n`;
+    lua += `    end\n`;
+    lua += `    outputDebugString("[Mod Loader] ✓ Tüm modlar başarıyla uygulandı! (Native İndirme)", 3, 0, 255, 0)\n`;
+    lua += `end)\n`;
+
+    return lua;
+}
+
+// Oyuncunun /mods komutuyla istediği modu kendi ekranında (sunucudaki diğer
+// oyuncuları etkilemeden) açıp kapatabilmesini sağlayan istemci taraflı sistem.
+// Düşük FPS alan oyuncular bu sayede istemedikleri modelleri kapatabilir.
+// Modlar hâlâ indirilirken (isLoading = true) komut kullanılamaz.
+function generateModToggleLua() {
+    let lua = `\n-- ============================================\n`;
+    lua += `-- OYUNCU MOD AÇMA/KAPATMA (/mods komutu)\n`;
+    lua += `-- Bu özellik SADECE komutu kullanan oyuncunun kendi ekranını etkiler,\n`;
+    lua += `-- sunucudaki veya diğer oyunculardaki görünümü DEĞİŞTİRMEZ.\n`;
+    lua += `-- Modlar indirilirken (yükleme ekranı açıkken) komut kullanılamaz.\n`;
+    lua += `-- ============================================\n\n`;
+
+    lua += `local modToggleStates = {} -- [modelId] = true (açık) / false (kapalı)\n`;
+    lua += `local modToggleWindow = nil\n\n`;
+
+    lua += `local function mtInitToggleStates()\n`;
+    lua += `    for i, mod in ipairs(modsToLoad) do\n`;
+    lua += `        if modToggleStates[tonumber(mod.id)] == nil then\n`;
+    lua += `            modToggleStates[tonumber(mod.id)] = true\n`;
+    lua += `        end\n`;
+    lua += `    end\n`;
+    lua += `end\n\n`;
+
+    lua += `local function mtApplyModVisual(mod)\n`;
+    lua += `    local txd = engineLoadTXD(mod.txdFile)\n`;
+    lua += `    if txd then\n`;
+    lua += `        engineImportTXD(txd, tonumber(mod.id))\n`;
+    lua += `    end\n`;
+    lua += `    local dff = engineLoadDFF(mod.dffFile, tonumber(mod.id))\n`;
+    lua += `    if dff then\n`;
+    lua += `        engineReplaceModel(dff, tonumber(mod.id))\n`;
+    lua += `    end\n`;
+    lua += `    if mod.colFile then\n`;
+    lua += `        local col = engineLoadCOL(mod.colFile)\n`;
+    lua += `        if col then\n`;
+    lua += `            engineReplaceCOL(col, tonumber(mod.id))\n`;
+    lua += `        end\n`;
+    lua += `    end\n`;
+    lua += `end\n\n`;
+
+    lua += `local function mtRestoreModVisual(mod)\n`;
+    lua += `    engineRestoreModel(tonumber(mod.id))\n`;
+    lua += `    if mod.colFile then\n`;
+    lua += `        engineRestoreCOL(tonumber(mod.id))\n`;
+    lua += `    end\n`;
+    lua += `end\n\n`;
+
+    lua += `local function mtIsToggleAllowed()\n`;
+    lua += `    if isLoading then\n`;
+    lua += `        outputChatBox("[Mod Loader] Modlar hala indiriliyor, lütfen tamamlanmasını bekleyin.", 255, 200, 0)\n`;
+    lua += `        return false\n`;
+    lua += `    end\n`;
+    lua += `    return true\n`;
+    lua += `end\n\n`;
+
+    lua += `local function mtDestroyToggleWindow()\n`;
+    lua += `    if modToggleWindow and isElement(modToggleWindow) then\n`;
+    lua += `        destroyElement(modToggleWindow)\n`;
+    lua += `        modToggleWindow = nil\n`;
+    lua += `    end\n`;
+    lua += `    showCursor(false)\n`;
+    lua += `end\n\n`;
+
+    lua += `local function mtToggleModById(modId)\n`;
+    lua += `    for i, mod in ipairs(modsToLoad) do\n`;
+    lua += `        if tostring(mod.id) == tostring(modId) then\n`;
+    lua += `            local enabled = modToggleStates[tonumber(mod.id)]\n`;
+    lua += `            if enabled then\n`;
+    lua += `                mtRestoreModVisual(mod)\n`;
+    lua += `                modToggleStates[tonumber(mod.id)] = false\n`;
+    lua += `                outputChatBox("[Mod Loader] '" .. mod.name .. "' kapatıldı. (Sadece kendi ekranınızda)", 255, 140, 140)\n`;
+    lua += `            else\n`;
+    lua += `                mtApplyModVisual(mod)\n`;
+    lua += `                modToggleStates[tonumber(mod.id)] = true\n`;
+    lua += `                outputChatBox("[Mod Loader] '" .. mod.name .. "' açıldı. (Sadece kendi ekranınızda)", 140, 255, 140)\n`;
+    lua += `            end\n`;
+    lua += `            return\n`;
+    lua += `        end\n`;
+    lua += `    end\n`;
+    lua += `end\n\n`;
+
+    lua += `local function mtBuildToggleWindow()\n`;
+    lua += `    mtDestroyToggleWindow()\n`;
+    lua += `    mtInitToggleStates()\n`;
+    lua += `    \n`;
+    lua += `    local sw, sh = guiGetScreenSize()\n`;
+    lua += `    local winW, winH = 360, 440\n`;
+    lua += `    modToggleWindow = guiCreateWindow((sw - winW) / 2, (sh - winH) / 2, winW, winH, "Mod Aç/Kapat (Sadece Sizde Geçerli)", false)\n`;
+    lua += `    guiWindowSetSizable(modToggleWindow, false)\n`;
+    lua += `    \n`;
+    lua += `    local listBox = guiCreateGridList(10, 28, winW - 20, winH - 78, false, modToggleWindow)\n`;
+    lua += `    guiGridListAddColumn(listBox, "Mod Adı", 0.6)\n`;
+    lua += `    guiGridListAddColumn(listBox, "Durum", 0.3)\n`;
+    lua += `    \n`;
+    lua += `    for i, mod in ipairs(modsToLoad) do\n`;
+    lua += `        local row = guiGridListAddRow(listBox)\n`;
+    lua += `        guiGridListSetItemText(listBox, row, 1, mod.name, false, false)\n`;
+    lua += `        local enabled = modToggleStates[tonumber(mod.id)]\n`;
+    lua += `        guiGridListSetItemText(listBox, row, 2, enabled and "Açık" or "Kapalı", false, false)\n`;
+    lua += `        guiGridListSetItemData(listBox, row, 1, tostring(mod.id))\n`;
+    lua += `    end\n`;
+    lua += `    \n`;
+    lua += `    local toggleBtn = guiCreateButton(10, winH - 42, (winW - 30) / 2, 30, "Seçileni Aç/Kapat", false, modToggleWindow)\n`;
+    lua += `    local closeBtn = guiCreateButton(winW / 2 + 5, winH - 42, (winW - 30) / 2, 30, "Kapat", false, modToggleWindow)\n`;
+    lua += `    \n`;
+    lua += `    addEventHandler("onClientGUIClick", toggleBtn, function()\n`;
+    lua += `        local selectedRow = guiGridListGetSelectedItem(listBox)\n`;
+    lua += `        if selectedRow and selectedRow ~= -1 then\n`;
+    lua += `            local modId = guiGridListGetItemData(listBox, selectedRow, 1)\n`;
+    lua += `            mtToggleModById(modId)\n`;
+    lua += `            mtBuildToggleWindow()\n`;
+    lua += `        end\n`;
+    lua += `    end, false)\n`;
+    lua += `    \n`;
+    lua += `    addEventHandler("onClientGUIClick", closeBtn, function()\n`;
+    lua += `        mtDestroyToggleWindow()\n`;
+    lua += `    end, false)\n`;
+    lua += `    \n`;
+    lua += `    showCursor(true)\n`;
+    lua += `end\n\n`;
+
+    lua += `addCommandHandler("mods", function()\n`;
+    lua += `    if not mtIsToggleAllowed() then return end\n`;
+    lua += `    if modToggleWindow and isElement(modToggleWindow) then\n`;
+    lua += `        mtDestroyToggleWindow()\n`;
+    lua += `    else\n`;
+    lua += `        mtBuildToggleWindow()\n`;
+    lua += `    end\n`;
+    lua += `end)\n\n`;
+
+    lua += `addEventHandler("onClientResourceStop", resourceRoot, function()\n`;
+    lua += `    mtDestroyToggleWindow()\n`;
+    lua += `end)\n`;
+
     return lua;
 }
 
 // meta.xml oluştur
 function generateMetaXml() {
+    const downloadAttr = loaderSettings.nativeDownload ? 'true' : 'false';
+    const description = loaderSettings.nativeDownload
+        ? 'Otomatik Mod Yükleyici (MTA Native İndirme)'
+        : 'Otomatik Mod Yükleyici';
+
     let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
     xml += `<meta>\n`;
-    xml += `    <info author="MTA Mod Loader" type="script" description="Otomatik Mod Yükleyici" />\n`;
+    xml += `    <info author="MTA Mod Loader" type="script" description="${description}" />\n`;
     xml += `    <script src="Client.lua" type="client" />\n\n`;
     
     if (modData.vehicles.size > 0) {
         xml += `    <!-- ARAÇ MODLARI -->\n`;
         modData.vehicles.forEach((mod) => {
-            if (mod.files.dff) xml += `    <file src="Mods/Araba/${mod.id}.dff" download="false" />\n`;
-            if (mod.files.txd) xml += `    <file src="Mods/Araba/${mod.id}.txd" download="false" />\n`;
+            if (mod.files.dff) xml += `    <file src="Mods/Araba/${mod.id}.dff" download="${downloadAttr}" />\n`;
+            if (mod.files.txd) xml += `    <file src="Mods/Araba/${mod.id}.txd" download="${downloadAttr}" />\n`;
         });
         xml += `\n`;
     }
@@ -935,8 +1690,8 @@ function generateMetaXml() {
     if (modData.characters.size > 0) {
         xml += `    <!-- KARAKTER MODLARI -->\n`;
         modData.characters.forEach((mod) => {
-            if (mod.files.dff) xml += `    <file src="Mods/Karakter/${mod.id}.dff" download="false" />\n`;
-            if (mod.files.txd) xml += `    <file src="Mods/Karakter/${mod.id}.txd" download="false" />\n`;
+            if (mod.files.dff) xml += `    <file src="Mods/Karakter/${mod.id}.dff" download="${downloadAttr}" />\n`;
+            if (mod.files.txd) xml += `    <file src="Mods/Karakter/${mod.id}.txd" download="${downloadAttr}" />\n`;
         });
         xml += `\n`;
     }
@@ -944,9 +1699,9 @@ function generateMetaXml() {
     if (modData.objects.size > 0) {
         xml += `    <!-- OBJE MODLARI -->\n`;
         modData.objects.forEach((mod) => {
-            if (mod.files.dff) xml += `    <file src="Mods/Obje/${mod.id}.dff" download="false" />\n`;
-            if (mod.files.txd) xml += `    <file src="Mods/Obje/${mod.id}.txd" download="false" />\n`;
-            if (mod.files.col) xml += `    <file src="Mods/Obje/${mod.id}.col" download="false" />\n`;
+            if (mod.files.dff) xml += `    <file src="Mods/Obje/${mod.id}.dff" download="${downloadAttr}" />\n`;
+            if (mod.files.txd) xml += `    <file src="Mods/Obje/${mod.id}.txd" download="${downloadAttr}" />\n`;
+            if (mod.files.col) xml += `    <file src="Mods/Obje/${mod.id}.col" download="${downloadAttr}" />\n`;
         });
         xml += `\n`;
     }
@@ -955,12 +1710,32 @@ function generateMetaXml() {
         xml += `    <!-- SİLAH MODLARI -->\n`;
         modData.weapons.forEach((mod) => {
             const effectiveId = mod.weaponId || mod.id;
-            if (mod.files.dff) xml += `    <file src="Mods/Silah/${effectiveId}.dff" download="false" />\n`;
-            if (mod.files.txd) xml += `    <file src="Mods/Silah/${effectiveId}.txd" download="false" />\n`;
+            if (mod.files.dff) xml += `    <file src="Mods/Silah/${effectiveId}.dff" download="${downloadAttr}" />\n`;
+            if (mod.files.txd) xml += `    <file src="Mods/Silah/${effectiveId}.txd" download="${downloadAttr}" />\n`;
         });
         xml += `\n`;
     }
     
+    const bgSlideEnabled = loaderSettings.fullscreenBgEnabled && !loaderSettings.nativeDownload && bgImages.length > 0;
+    if (bgSlideEnabled) {
+        xml += `    <!-- TAM EKRAN ARKAPLAN SLAYTI GÖRSELLERİ -->\n`;
+        // Bu görseller download="true" ile paketlenir: küçük boyutlu, oyun başlamadan önce hazır
+        // olması gereken arayüz varlıklarıdır; mod dosyaları gibi kademeli/manuel indirme
+        // kuyruğuna girmezler.
+        getBgImageEntries().forEach((entry) => {
+            xml += `    <file src="${entry.path}" download="true" />\n`;
+        });
+        xml += `\n`;
+    }
+
+    const audioEnabled = loaderSettings.fullscreenBgEnabled && !loaderSettings.nativeDownload && bgAudio !== null;
+    if (audioEnabled) {
+        xml += `    <!-- ARKA PLAN MÜZİĞİ (MP3) -->\n`;
+        const audioEntry = getBgAudioEntry();
+        xml += `    <file src="${audioEntry.path}" download="true" />\n`;
+        xml += `\n`;
+    }
+
     xml += `</meta>\n`;
     return xml;
 }
@@ -969,8 +1744,10 @@ function generateMetaXml() {
 function showPreview(clientLua) {
     const modal = document.getElementById('previewModal');
     const previewCode = document.getElementById('previewCode');
+    const fileNameInput = document.getElementById('outputFileName');
     
     previewCode.textContent = clientLua;
+    if (fileNameInput) fileNameInput.value = outputFileName;
     modal.classList.add('active');
 }
 
@@ -978,6 +1755,16 @@ function showPreview(clientLua) {
 function closePreview() {
     const modal = document.getElementById('previewModal');
     modal.classList.remove('active');
+}
+
+// Kullanıcının girdiği dosya adını dosya sisteminde güvenli hale getirir
+function sanitizeFileName(name) {
+    let clean = (name || '').trim();
+    clean = clean.replace(/[\\/:*?"<>|]+/g, '_'); // Windows'ta yasak karakterleri temizle
+    clean = clean.replace(/\.+$/, ''); // sondaki noktaları kaldır
+    clean = clean.slice(0, 60);
+    if (!clean) clean = 'MTA_ModLoader';
+    return clean;
 }
 
 // Script indir
@@ -1027,26 +1814,44 @@ function downloadScript() {
                 if (mod.files.txd) weaponsFolder.file(`${effectiveId}.txd`, mod.files.txd);
             });
         }
+
+        const bgSlideEnabled = loaderSettings.fullscreenBgEnabled && !loaderSettings.nativeDownload && bgImages.length > 0;
+        const audioEnabled = loaderSettings.fullscreenBgEnabled && !loaderSettings.nativeDownload && bgAudio !== null;
+        if (bgSlideEnabled || audioEnabled) {
+            const loaderFolder = zip.folder('Loader');
+            if (bgSlideEnabled) {
+                getBgImageEntries().forEach((entry) => {
+                    loaderFolder.file(entry.fileName, entry.file);
+                });
+            }
+            if (audioEnabled) {
+                const audioEntry = getBgAudioEntry();
+                loaderFolder.file(audioEntry.fileName, audioEntry.file);
+            }
+        }
         
         zip.generateAsync({ type: 'blob' }).then(function(content) {
+            const finalFileName = sanitizeFileName(outputFileName) + '.zip';
+            outputFileName = sanitizeFileName(outputFileName);
+
             const url = window.URL.createObjectURL(content);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'MTA_ModLoader.zip';
+            a.download = finalFileName;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
             
-            alert('✅ ZIP dosyası indirildi!');
+            showToast(`"${finalFileName}" indirildi!`, 'success');
             closePreview();
         }).catch(function(error) {
-            alert('❌ Hata: ' + error);
+            showToast('ZIP oluşturulurken hata oluştu: ' + error, 'error');
         });
     };
     
     script.onerror = function() {
-        alert('❌ JSZip kütüphanesi yüklenemedi.');
+        showToast('JSZip kütüphanesi yüklenemedi. İnternet bağlantınızı kontrol edin.', 'error');
     };
     
     document.head.appendChild(script);
