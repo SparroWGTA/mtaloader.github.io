@@ -60,6 +60,69 @@ function showToast(message, type = 'info', duration) {
     container.appendChild(toast);
 }
 
+// ============================================
+// ÖZEL ONAY KUTUSU (infobox) — window.confirm() yerine kullanılır
+// ============================================
+function showConfirm(message, options = {}) {
+    const {
+        title = 'Emin misiniz?',
+        icon = '⚠️',
+        okText = 'Tamam',
+        cancelText = 'İptal',
+        danger = true
+    } = options;
+
+    return new Promise((resolve) => {
+        const modal = document.getElementById('confirmModal');
+        if (!modal) {
+            // Modal DOM'da yoksa tarayıcının yerleşik onayına geri düş
+            resolve(window.confirm(message));
+            return;
+        }
+
+        const iconEl = document.getElementById('confirmModalIcon');
+        const titleEl = document.getElementById('confirmModalTitle');
+        const messageEl = document.getElementById('confirmModalMessage');
+        const okBtn = document.getElementById('confirmModalOkBtn');
+        const cancelBtn = document.getElementById('confirmModalCancelBtn');
+
+        iconEl.textContent = icon;
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        okBtn.textContent = okText;
+        cancelBtn.textContent = cancelText;
+        okBtn.className = danger ? 'btn-danger' : 'btn-primary';
+
+        let settled = false;
+        const cleanup = (result) => {
+            if (settled) return;
+            settled = true;
+            modal.classList.remove('active');
+            okBtn.removeEventListener('click', onOk);
+            cancelBtn.removeEventListener('click', onCancel);
+            modal.removeEventListener('click', onOverlayClick);
+            document.removeEventListener('keydown', onKeydown);
+            resolve(result);
+        };
+
+        const onOk = () => cleanup(true);
+        const onCancel = () => cleanup(false);
+        const onOverlayClick = (e) => { if (e.target === modal) cleanup(false); };
+        const onKeydown = (e) => {
+            if (e.key === 'Escape') cleanup(false);
+            else if (e.key === 'Enter') cleanup(true);
+        };
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        modal.addEventListener('click', onOverlayClick);
+        document.addEventListener('keydown', onKeydown);
+
+        modal.classList.add('active');
+        okBtn.focus();
+    });
+}
+
 // Silah Listesi
 const WEAPON_LIST = {
     331: "Brassknuckle",
@@ -502,8 +565,12 @@ function renderBgAudioInfo() {
 }
 
 // Ayarları varsayılana sıfırla
-function resetSettings() {
-    if (!confirm('Tüm script ayarlarını varsayılana sıfırlamak istediğinize emin misiniz?')) {
+async function resetSettings() {
+    const confirmed = await showConfirm(
+        'Tüm script ayarlarını varsayılana sıfırlamak istediğinize emin misiniz?',
+        { title: 'Ayarları Sıfırla', icon: '↺', okText: 'Sıfırla' }
+    );
+    if (!confirmed) {
         return;
     }
 
@@ -1024,9 +1091,13 @@ function updateModName(category, modId, newName) {
 }
 
 // Modunu sil
-function deleteMod(category, modId) {
+async function deleteMod(category, modId) {
     const modName = modData[category].get(modId).name;
-    if (confirm(`"${modName}" modunu silmek istediğinize emin misiniz?`)) {
+    const confirmed = await showConfirm(
+        `"${modName}" modunu silmek istediğinize emin misiniz?`,
+        { title: 'Modu Sil', icon: '🗑️' }
+    );
+    if (confirmed) {
         modData[category].delete(modId);
         updateModsList(category);
     }
@@ -1151,7 +1222,7 @@ function confirmBulkAssignIds() {
 }
 
 // Seçili modları toplu sil
-function deleteSelectedMods(category) {
+async function deleteSelectedMods(category) {
     const checkedBoxes = document.querySelectorAll(`#${category}List .mod-item-checkbox:checked`);
     
     if (checkedBoxes.length === 0) {
@@ -1161,15 +1232,23 @@ function deleteSelectedMods(category) {
     
     const modIds = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-mod-id'));
     
-    if (confirm(`${modIds.length} modu silmek istediğinize emin misiniz?`)) {
+    const confirmed = await showConfirm(
+        `${modIds.length} modu silmek istediğinize emin misiniz?`,
+        { title: 'Seçilenleri Sil', icon: '🗑️' }
+    );
+    if (confirmed) {
         modIds.forEach(modId => modData[category].delete(modId));
         updateModsList(category);
     }
 }
 
 // Tüm modları temizle
-function clearAllMods() {
-    if (confirm('Tüm modları silmek istediğinize emin misiniz?')) {
+async function clearAllMods() {
+    const confirmed = await showConfirm(
+        'Tüm modları silmek istediğinize emin misiniz?',
+        { title: 'Tüm Modları Sil', icon: '🗑️' }
+    );
+    if (confirmed) {
         modData.vehicles.clear();
         modData.characters.clear();
         modData.objects.clear();

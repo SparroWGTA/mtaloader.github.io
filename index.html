@@ -1565,6 +1565,58 @@
             justify-content: flex-end;
         }
 
+        /* Onay kutusu (infobox) — window.confirm() yerine kullanılan özel popup */
+        .confirm-modal-content {
+            max-width: 420px;
+            width: 90%;
+        }
+
+        .confirm-modal-body {
+            padding: 28px 28px 6px;
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .confirm-modal-icon {
+            font-size: 26px;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        .confirm-modal-text {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .confirm-modal-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 6px;
+        }
+
+        .confirm-modal-message {
+            font-size: 13.5px;
+            color: var(--text-light);
+            line-height: 1.55;
+        }
+
+        .confirm-modal-footer {
+            padding: 22px 28px 28px;
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .confirm-modal-footer .btn-primary,
+        .confirm-modal-footer .btn-secondary,
+        .confirm-modal-footer .btn-danger {
+            min-width: 110px;
+            padding: 11px 22px;
+            font-size: 13px;
+        }
+
         /* Loader Preview */
         .loader-preview {
             background: #1a1a2e;
@@ -2619,6 +2671,22 @@
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="closeBulkIdModal()">İptal</button>
                 <button class="btn-primary" onclick="confirmBulkAssignIds()">✓ Ata</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="modal">
+        <div class="modal-content confirm-modal-content">
+            <div class="confirm-modal-body">
+                <div class="confirm-modal-icon" id="confirmModalIcon">⚠️</div>
+                <div class="confirm-modal-text">
+                    <div class="confirm-modal-title" id="confirmModalTitle">Emin misiniz?</div>
+                    <div class="confirm-modal-message" id="confirmModalMessage"></div>
+                </div>
+            </div>
+            <div class="confirm-modal-footer">
+                <button class="btn-secondary" id="confirmModalCancelBtn">İptal</button>
+                <button class="btn-danger" id="confirmModalOkBtn">Tamam</button>
             </div>
         </div>
     </div>
