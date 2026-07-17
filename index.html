@@ -275,6 +275,426 @@
             cursor: pointer;
         }
 
+        /* Settings header / description */
+        .settings-section-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .settings-section-headtext h3 {
+            margin-bottom: 4px;
+        }
+
+        .settings-title-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 4px;
+        }
+
+        .settings-title-row h3 {
+            margin-bottom: 0;
+        }
+
+        .info-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 11px;
+            border: 1.5px solid var(--primary-color);
+            background: rgba(6, 182, 212, 0.08);
+            color: var(--primary-dark);
+            border-radius: 999px;
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .info-btn:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .info-btn.active {
+            background: var(--primary-dark);
+            border-color: var(--primary-dark);
+            color: white;
+        }
+
+        /* Tüm ayar bölümlerinde "Bilgi" butonuna basınca açılan tek tip açıklama kutusu */
+        .info-panel {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .info-panel:not([hidden]) {
+            display: flex;
+        }
+
+        .info-panel-text {
+            font-size: 12.5px;
+            color: var(--text-light);
+            line-height: 1.6;
+            padding: 10px 12px;
+            background: rgba(6, 182, 212, 0.05);
+            border-left: 3px solid var(--primary-color);
+            border-radius: 6px;
+        }
+
+        .info-panel .toggle-row-sub {
+            margin-top: 4px;
+        }
+
+        .info-panel .settings-note {
+            margin-top: 0;
+        }
+
+        .settings-section.emphasis {
+            background: linear-gradient(160deg, rgba(6, 182, 212, 0.07), rgba(6, 182, 212, 0.015));
+            border: 1px solid rgba(6, 182, 212, 0.35);
+        }
+
+        /* Toggle switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #cbd5e1;
+            transition: 0.25s;
+            border-radius: 999px;
+        }
+
+        .toggle-slider::before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.25s;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.25);
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: linear-gradient(120deg, var(--primary-color), var(--primary-dark));
+        }
+
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(22px);
+        }
+
+        .toggle-switch input:focus-visible + .toggle-slider {
+            box-shadow: 0 0 0 4px var(--shadow-color);
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .toggle-row-label {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+
+        .toggle-row-sub {
+            font-size: 12px;
+            color: var(--text-light);
+            margin-top: 2px;
+        }
+
+        .settings-note {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            font-size: 12.5px;
+            line-height: 1.6;
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            margin-top: 14px;
+        }
+
+        .settings-note.warn {
+            background: rgba(245, 158, 11, 0.10);
+            border: 1px dashed #f59e0b;
+            color: #92400e;
+        }
+
+        .settings-note.info {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px dashed var(--primary-color);
+            color: var(--primary-dark);
+        }
+
+        /* Disabled section overlay (used when native download active) */
+        .settings-section.is-disabled {
+            opacity: 0.45;
+            pointer-events: none;
+            filter: grayscale(0.4);
+            position: relative;
+        }
+
+        .settings-section.is-disabled::after {
+            content: 'MTA Native İndirme aktifken bu ayarlar kullanılmaz';
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-light);
+            background: rgba(255, 255, 255, 0.55);
+            border-radius: var(--radius-md);
+        }
+
+        /* Tam ekran arkaplan slaytı - görsel slotları */
+        .bg-image-slots {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 14px;
+            margin-top: 18px;
+        }
+
+        .bg-image-slot {
+            position: relative;
+            aspect-ratio: 16 / 9;
+            border: 2px dashed var(--border-color);
+            border-radius: var(--radius-sm);
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .bg-image-slot:hover {
+            border-color: var(--primary-color);
+            background: rgba(6, 182, 212, 0.06);
+            transform: translateY(-2px);
+        }
+
+        .bg-image-slot.filled {
+            border-style: solid;
+            border-color: var(--primary-color);
+            cursor: default;
+        }
+
+        .bg-image-slot.filled:hover {
+            transform: none;
+        }
+
+        .bg-image-slot img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .bg-image-slot-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-light);
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+            padding: 8px;
+        }
+
+        .bg-image-slot-placeholder .plus-icon {
+            font-size: 22px;
+            line-height: 1;
+            color: var(--primary-color);
+            font-weight: 800;
+        }
+
+        .bg-image-slot-remove {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(15, 23, 42, 0.65);
+            color: white;
+            font-size: 14px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s ease;
+        }
+
+        .bg-image-slot-remove:hover {
+            background: var(--danger-color);
+        }
+
+        .bg-image-slot-index {
+            position: absolute;
+            bottom: 6px;
+            left: 6px;
+            background: rgba(15, 23, 42, 0.65);
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 999px;
+        }
+
+        /* Tam ekran arkaplan slaytı - opsiyonel arka plan müziği (mp3) */
+        .bg-audio-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 16px;
+            padding: 14px 16px;
+            background: white;
+            border: 1.5px dashed var(--border-color);
+            border-radius: var(--radius-sm);
+        }
+
+        .bg-audio-info {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            min-width: 0;
+        }
+
+        .bg-audio-label {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+
+        .bg-audio-filename {
+            font-size: 12px;
+            color: var(--text-light);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 320px;
+        }
+
+        .bg-audio-filename.has-file {
+            color: var(--primary-dark);
+            font-weight: 600;
+        }
+
+        .bg-audio-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .btn-bg-audio-pick,
+        .btn-bg-audio-remove {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 999px;
+            font-family: inherit;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-bg-audio-pick {
+            border: none;
+            background: linear-gradient(120deg, var(--primary-color), var(--primary-dark));
+            color: white;
+        }
+
+        .btn-bg-audio-pick:hover {
+            filter: brightness(1.08);
+        }
+
+        .btn-bg-audio-remove {
+            border: 2px solid var(--border-color);
+            background: white;
+            color: var(--text-light);
+        }
+
+        .btn-bg-audio-remove:hover {
+            border-color: var(--danger-color);
+            color: var(--danger-color);
+            background: rgba(239, 68, 68, 0.06);
+        }
+
+        #fullscreenBgBody.is-off {
+            opacity: 0.45;
+            pointer-events: none;
+            filter: grayscale(0.4);
+        }
+
+        .settings-reset-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 6px;
+        }
+
+        .btn-reset-settings {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 9px 18px;
+            border: 2px solid var(--border-color);
+            background: white;
+            color: var(--text-light);
+            border-radius: 999px;
+            font-family: inherit;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .btn-reset-settings:hover {
+            border-color: var(--danger-color);
+            color: var(--danger-color);
+            background: rgba(239, 68, 68, 0.06);
+        }
+
         /* Upload Area */
         .upload-section {
             margin-bottom: 34px;
@@ -498,15 +918,34 @@
             box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.18);
         }
 
+        .mod-item-id-input.conflict {
+            border-color: #f59e0b;
+            background: #fffbeb;
+        }
+
+        .mod-item-id-input.conflict:focus {
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.18);
+        }
+
         .mod-item-id-warning {
             color: var(--danger-color);
             font-size: 12px;
             font-weight: 700;
         }
 
+        .mod-item-id-warning.conflict {
+            color: #b45309;
+        }
+
         .mod-item.needs-id {
             border-color: var(--danger-color);
             box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.25);
+        }
+
+        .mod-item.id-conflict {
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.3);
         }
 
         .mod-item-files {
@@ -724,6 +1163,66 @@
             padding: 24px 28px;
             overflow-y: auto;
             flex: 1;
+        }
+
+        .modal-filename-bar {
+            padding: 16px 28px;
+            background: #f8fafc;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .modal-filename-bar label {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-dark);
+            white-space: nowrap;
+        }
+
+        .filename-input-wrap {
+            display: flex;
+            align-items: center;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            flex: 1;
+            min-width: 200px;
+            max-width: 340px;
+            background: white;
+            transition: all 0.25s ease;
+        }
+
+        .filename-input-wrap:focus-within {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px var(--shadow-color);
+        }
+
+        .filename-input-wrap input {
+            border: none;
+            padding: 10px 12px;
+            font-family: inherit;
+            font-size: 13px;
+            flex: 1;
+            min-width: 0;
+            color: var(--text-dark);
+            background: transparent;
+        }
+
+        .filename-input-wrap input:focus {
+            outline: none;
+        }
+
+        .filename-suffix {
+            padding: 10px 12px;
+            background: #f1f5f9;
+            color: var(--text-light);
+            font-size: 12.5px;
+            font-weight: 700;
+            border-left: 1px solid var(--border-color);
+            white-space: nowrap;
         }
 
         #previewCode {
@@ -1006,6 +1505,16 @@
                 padding: 18px;
             }
 
+            .modal-filename-bar {
+                padding: 14px 18px;
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filename-input-wrap {
+                max-width: none;
+            }
+
             .modal-footer {
                 padding: 14px 18px;
                 flex-direction: column-reverse;
@@ -1054,6 +1563,134 @@
 
             #previewCode {
                 font-size: 11px;
+            }
+        }
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 12px;
+            max-width: 380px;
+            width: calc(100% - 48px);
+            pointer-events: none;
+        }
+
+        .toast {
+            pointer-events: auto;
+            background: white;
+            border-radius: var(--radius-md);
+            box-shadow: 0 12px 30px -8px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(226, 232, 240, 0.9);
+            padding: 15px 16px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            border-left: 5px solid var(--primary-color);
+            animation: toastIn 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .toast.removing {
+            animation: toastOut 0.22s ease forwards;
+        }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(50px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes toastOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(50px); }
+        }
+
+        .toast-icon {
+            font-size: 19px;
+            line-height: 1;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .toast-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .toast-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 3px;
+        }
+
+        .toast-message {
+            font-size: 12.5px;
+            color: var(--text-light);
+            line-height: 1.55;
+            white-space: pre-line;
+            word-break: break-word;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: var(--text-light);
+            font-size: 17px;
+            cursor: pointer;
+            line-height: 1;
+            padding: 2px 4px;
+            flex-shrink: 0;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .toast-close:hover {
+            background: rgba(15, 23, 42, 0.06);
+            color: var(--text-dark);
+        }
+
+        .toast-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            width: 100%;
+            background: currentColor;
+            opacity: 0.35;
+            transform-origin: left;
+            animation-name: toastProgress;
+            animation-timing-function: linear;
+            animation-fill-mode: forwards;
+        }
+
+        @keyframes toastProgress {
+            from { transform: scaleX(1); }
+            to { transform: scaleX(0); }
+        }
+
+        .toast.success { border-left-color: var(--success-color); }
+        .toast.success .toast-icon, .toast.success .toast-progress { color: var(--success-color); }
+
+        .toast.warning { border-left-color: #f59e0b; }
+        .toast.warning .toast-icon, .toast.warning .toast-progress { color: #f59e0b; }
+
+        .toast.error { border-left-color: var(--danger-color); }
+        .toast.error .toast-icon, .toast.error .toast-progress { color: var(--danger-color); }
+
+        .toast.info { border-left-color: var(--primary-color); }
+        .toast.info .toast-icon, .toast.info .toast-progress { color: var(--primary-color); }
+
+        @media (max-width: 480px) {
+            .toast-container {
+                left: 12px;
+                right: 12px;
+                bottom: 12px;
+                max-width: none;
+                width: auto;
             }
         }
     </style>
@@ -1210,9 +1847,150 @@
             <div class="tab-content" id="settings-tab">
                 <div class="tab-section">
                     <h2>⚙️ Script Ayarları</h2>
-                    
-                    <div class="settings-section">
-                        <h3>Loader Tasarımı</h3>
+
+                    <div class="settings-section emphasis" id="nativeDownloadSection">
+                        <div class="settings-section-head">
+                            <div class="settings-section-headtext">
+                                <div class="settings-title-row">
+                                    <h3>📡 İndirme Yöntemi</h3>
+                                    <button type="button" class="info-btn" onclick="toggleInfo('nativeDownloadDesc', this)">ℹ️ Bilgi</button>
+                                </div>
+                            </div>
+                            <div class="toggle-row">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="nativeDownloadToggle" onchange="updateLoaderPreview()">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="info-panel" id="nativeDownloadDesc" hidden>
+                            <p class="info-panel-text">
+                                Modların oyuncuya nasıl indirileceğini belirler. <strong>Kapalıyken</strong>
+                                (varsayılan), dosyalar <code>download="false"</code> ile paketlenir; oyuncu
+                                sunucuya girdiğinde modlar sırayla indirilir ve aşağıda tasarımını
+                                özelleştirdiğiniz özel yükleme çubuğu ekranda gösterilir. <strong>Açtığınızda</strong>
+                                ise dosyalar <code>download="true"</code> ile paketlenir, indirme MTA'nın kendi
+                                senkronizasyon ekranıyla yapılır; özel yükleme ekranı (tasarım, renk, konum,
+                                geçiş süresi ayarları) devre dışı kalır ve script sadece indirilen modelleri
+                                doğrudan uygular.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="settings-section" id="modToggleSection">
+                        <div class="settings-section-head">
+                            <div class="settings-section-headtext">
+                                <div class="settings-title-row">
+                                    <h3>🎛️ Oyuncu Mod Aç/Kapat (<code>/mods</code>)</h3>
+                                    <button type="button" class="info-btn" onclick="toggleInfo('modToggleDesc', this)">ℹ️ Bilgi</button>
+                                </div>
+                            </div>
+                            <div class="toggle-row">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="modToggleToggle" onchange="updateLoaderPreview()">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="info-panel" id="modToggleDesc" hidden>
+                            <p class="info-panel-text">
+                                Açıldığında oyuncular sohbete <code>/mods</code> yazarak istedikleri modu kendi
+                                ekranlarında tek tek açıp kapatabilir; bu <small>sadece</small> komutu kullanan oyuncunun kendi
+                                görüntüsünü etkiler, sunucudaki veya diğer oyunculardaki görünümü değiştirmez ve
+                                düşük FPS alan oyunculara yardımcı olur. Modlar hâlâ indirilirken (yükleme ekranı
+                                açıkken) komut kullanılamaz; oyuncu "Modlar hala indiriliyor..." uyarısı alır,
+                                indirme tamamlandıktan sonra komut serbest kalır.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="settings-section" id="fullscreenBgSection">
+                        <div class="settings-section-head">
+                            <div class="settings-section-headtext">
+                                <div class="settings-title-row">
+                                    <h3>🖥️ Tam Ekran Arkaplan Slaytı</h3>
+                                    <button type="button" class="info-btn" onclick="toggleInfo('fullscreenBgDesc', this)">ℹ️ Bilgi</button>
+                                </div>
+                            </div>
+                            <div class="toggle-row">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="fullscreenBgToggle" onchange="updateLoaderPreview()">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="info-panel" id="fullscreenBgDesc" hidden>
+                            <p class="info-panel-text">
+                                Açıldığında, yükleme çubuğunun arkasında ekranı uçtan uca kaplayan bir arkaplan
+                                görseli gösterilir. <strong>Birden fazla görsel eklerseniz</strong> aralarında
+                                otomatik slayt geçişi yapılır. En iyi sonuç için <strong>1920x1080</strong>
+                                boyutunda görseller kullanın; sistem, görselleri oranını koruyarak her ekran
+                                çözünürlüğünü tam kaplayacak şekilde (kırparak) otomatik ölçekler. Dilerseniz
+                                slayt gösterisine eşlik etmesi için <strong>opsiyonel bir MP3 arka plan
+                                müziği</strong> de ekleyebilirsiniz.
+                            </p>
+                        </div>
+
+                        <div id="fullscreenBgBody" class="is-off">
+                            <div class="settings-grid">
+                                <div class="color-picker-group">
+                                    <label>Slayt Geçiş Süresi: <span id="bgSlideIntervalValue">5</span> sn</label>
+                                    <input type="range" id="bgSlideIntervalRange" min="2" max="30" step="1" value="5" oninput="updateLoaderPreview()">
+                                </div>
+                            </div>
+
+                            <div class="bg-image-slots" id="bgImageSlots"></div>
+
+                            <div class="settings-note info">
+                                ℹ️ En az 1 görsel eklediğinizde arkaplan sabit gösterilir; 2 veya daha fazla
+                                görsel eklerseniz aralarında otomatik geçiş başlar. Görseller
+                                <code>download="true"</code> ile paketlenir, yani resource başlamadan önce
+                                oyuncuda hazır olur ve mod dosyalarının manuel indirme kuyruğunu etkilemez.
+                            </div>
+
+                            <div class="bg-audio-row">
+                                <div class="bg-audio-info">
+                                    <span class="bg-audio-label">🎵 Arkaplan Müziği (opsiyonel, MP3)</span>
+                                    <span class="bg-audio-filename" id="bgAudioFileName">Seçilmedi — yükleme ekranı sessiz olur</span>
+                                </div>
+                                <div class="bg-audio-actions">
+                                    <button type="button" class="btn-bg-audio-pick" id="bgAudioPickBtn" onclick="triggerBgAudioPicker()">🎵 MP3 Seç</button>
+                                    <button type="button" class="btn-bg-audio-remove" id="bgAudioRemoveBtn" onclick="removeBgAudio()" style="display: none;">✕ Kaldır</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <input type="file" id="bgImageFileInput" accept="image/*" style="display: none;">
+                        <input type="file" id="bgAudioFileInput" accept=".mp3,audio/mpeg" style="display: none;">
+                    </div>
+
+                    <div class="settings-section" id="loaderStyleSection">
+                        <div class="settings-section-head">
+                            <div class="settings-section-headtext">
+                                <div class="settings-title-row">
+                                    <h3>🎨 Loader Tasarımı</h3>
+                                    <button type="button" class="info-btn" onclick="toggleInfo('loaderStyleDesc', this)">ℹ️ Bilgi</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-panel" id="loaderStyleDesc" hidden>
+                            <p class="info-panel-text">
+                                Yükleme sırasında oyuncunun ekranında görünen ilerleme çubuğunun görsel
+                                tasarımını belirler; işlevi değiştirmez, sadece görünümü değiştirir.
+                                <strong>Kart Paneli:</strong> mod adı ve yüzdenin üstte, ilerleme çubuğunun
+                                altta olduğu dolgun bir kutu. <strong>Çerçeveli Bar:</strong> ince, çerçeveli
+                                ve sade bir çubuk. <strong>Bölmeli Bar:</strong> çubuğun küçük parçalara
+                                (segmentlere) bölündüğü, oyun menülerine benzeyen bir görünüm.
+                                <strong>Yüzde Vurgulu:</strong> yüzde değerinin büyük punto ile öne çıktığı
+                                tasarım. Seçtiğiniz tarzı aşağıdaki "Loader Ön İzleme" alanından canlı olarak
+                                görebilirsiniz.
+                            </p>
+                        </div>
+
                         <div class="settings-grid">
                             <div class="color-picker-group">
                                 <label>Loader Tarzı:</label>
@@ -1226,8 +2004,29 @@
                         </div>
                     </div>
 
-                    <div class="settings-section">
-                        <h3>Renkler</h3>
+                    <div class="settings-section" id="colorsSection">
+                        <div class="settings-section-head">
+                            <div class="settings-section-headtext">
+                                <div class="settings-title-row">
+                                    <h3>🌈 Renkler</h3>
+                                    <button type="button" class="info-btn" onclick="toggleInfo('colorsDesc', this)">ℹ️ Bilgi</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-panel" id="colorsDesc" hidden>
+                            <p class="info-panel-text">
+                                Yükleme çubuğunda kullanılan üç rengi ayrı ayrı belirler.
+                                <strong>Ana Renk:</strong> ilerleme çubuğunun dolgu rengi ve yüzde yazısının
+                                rengidir; sunucunuzun logosuyla/temasıyla uyumlu bir vurgu rengi seçmeniz
+                                önerilir. <strong>Arkaplan Rengi:</strong> yükleme panelinin/çubuğun zemin
+                                rengidir — "Tam Ekran Arkaplan Slaytı" açıksa bu renk görsellerin arkasında
+                                kalır ve pek görünmez. <strong>Yazı Rengi:</strong> mod adı gibi metinlerin
+                                rengidir; arkaplan rengiyle <strong>kontrastı yüksek</strong> bir renk
+                                seçerseniz yazılar daha okunaklı olur.
+                            </p>
+                        </div>
+
                         <div class="settings-grid">
                             <div class="color-picker-group">
                                 <label>Ana Renk:</label>
@@ -1253,8 +2052,28 @@
                         </div>
                     </div>
 
-                    <div class="settings-section">
-                        <h3>Konum ve Boyut</h3>
+                    <div class="settings-section" id="positionSection">
+                        <div class="settings-section-head">
+                            <div class="settings-section-headtext">
+                                <div class="settings-title-row">
+                                    <h3>📐 Konum ve Boyut</h3>
+                                    <button type="button" class="info-btn" onclick="toggleInfo('positionDesc', this)">ℹ️ Bilgi</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-panel" id="positionDesc" hidden>
+                            <p class="info-panel-text">
+                                Yükleme çubuğunun ekranda nerede ve ne büyüklükte görüneceğini belirler.
+                                <strong>Ekran Konumu:</strong> çubuğun ekranın altında, üstünde veya tam
+                                ortasında gösterilmesini sağlar. <strong>Bar Genişliği:</strong> çubuğun ekran
+                                genişliğine oranını (yüzde) belirler; büyük değer daha geniş, küçük değer daha
+                                dar bir çubuk oluşturur. <strong>Yazı Boyutu:</strong> mod adı ve yüzde gibi
+                                metinlerin piksel cinsinden büyüklüğüdür; küçük ekranlarda veya kalabalık
+                                arayüzlerde daha küçük, dikkat çekmesi için daha büyük seçilebilir.
+                            </p>
+                        </div>
+
                         <div class="settings-grid">
                             <div class="color-picker-group">
                                 <label>Ekran Konumu:</label>
@@ -1275,8 +2094,29 @@
                         </div>
                     </div>
 
-                    <div class="settings-section">
-                        <h3>Yükleme Davranışı</h3>
+                    <div class="settings-section" id="behaviorSection">
+                        <div class="settings-section-head">
+                            <div class="settings-section-headtext">
+                                <div class="settings-title-row">
+                                    <h3>⏱️ Yükleme Davranışı</h3>
+                                    <button type="button" class="info-btn" onclick="toggleInfo('behaviorDesc', this)">ℹ️ Bilgi</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-panel" id="behaviorDesc" hidden>
+                            <p class="info-panel-text">
+                                Bir mod indirilip uygulandıktan sonra, sıradaki moda geçmeden önce ne kadar
+                                bekleneceğini belirler. <strong>Mod Geçiş Süresi</strong> 0 saniye olursa
+                                modlar birbiri ardına, beklemeden hızlıca indirilir; bu, sunucunun ve oyuncunun
+                                ağ/disk performansına göre kısa süreli takılmalara yol açabilir. Süreyi
+                                <strong>1-2 saniye</strong> gibi tutmak indirmelerin daha akıcı ve yükleme
+                                çubuğunun daha okunabilir görünmesini sağlar; mod sayısı fazlaysa bu süre
+                                toplam yükleme süresini uzatabileceğinden <strong>düşük tutulması</strong>
+                                önerilir.
+                            </p>
+                        </div>
+
                         <div class="settings-grid">
                             <div class="color-picker-group">
                                 <label>Mod Geçiş Süresi: <span id="modDelayValue">1</span> sn</label>
@@ -1285,8 +2125,28 @@
                         </div>
                     </div>
 
-                    <div class="settings-section">
-                        <h3>Loader Ön İzleme</h3>
+                    <div class="settings-section" id="previewSection">
+                        <div class="settings-section-head">
+                            <div class="settings-section-headtext">
+                                <div class="settings-title-row">
+                                    <h3>👁️ Loader Ön İzleme</h3>
+                                    <button type="button" class="info-btn" onclick="toggleInfo('previewDesc', this)">ℹ️ Bilgi</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-panel" id="previewDesc" hidden>
+                            <p class="info-panel-text">
+                                Bu alan, gerçek bir mod indirmeden, yukarıda seçtiğiniz Loader Tasarımı,
+                                Renkler, Konum/Boyut ve Arkaplan Slaytı ayarlarının oyuncunun ekranında nasıl
+                                görüneceğini örnek bir "Test Modu (%45)" verisiyle <strong>canlı olarak</strong>
+                                gösterir. Yaptığınız her değişiklik <strong>anında</strong> bu önizlemeye
+                                yansır; script oluşturmadan önce tasarımı buradan kontrol edebilirsiniz.
+                                "MTA Native İndirme" açıkken özel yükleme ekranı kullanılmayacağı için bu
+                                önizleme devre dışı kalır.
+                            </p>
+                        </div>
+
                         <div class="loader-preview" id="loaderPreview">
                             <div style="width: 100%; text-align: center;">
                                 <div class="loader-bar-horizontal">
@@ -1297,6 +2157,10 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <div class="settings-reset-row">
+                        <button class="btn-reset-settings" onclick="resetSettings()">↺ Ayarları Varsayılana Sıfırla</button>
                     </div>
                 </div>
             </div>
@@ -1348,7 +2212,7 @@
                         <ol class="info-steps">
                             <li><strong>Mod Yükleyin:</strong> İlgili sekmeye (Araçlar, Karakterler, Objeler, Silahlar) dosyalarınızı sürükleyip bırakın veya "Dosyaları Seç" ile ekleyin.</li>
                             <li><strong>Kontrol Edin:</strong> "Yüklenen Modlar" listesinden ID ve mod adlarını gerekirse düzenleyin; istemediğiniz modları tek tek veya seçerek toplu şekilde silebilirsiniz.</li>
-                            <li><strong>Görünümü Özelleştirin:</strong> "Ayarlar" sekmesinden yükleme ekranının rengini, konumunu, boyutunu ve modlar arası geçiş süresini ayarlayın.</li>
+                            <li><strong>Görünümü Özelleştirin:</strong> "Ayarlar" sekmesinden yükleme ekranının rengini, konumunu, boyutunu ve modlar arası geçiş süresini ayarlayın. Dilerseniz "İndirme Yöntemi" bölümünden özel yükleme ekranını kapatıp MTA'nın kendi <code>download="true"</code> indirme sistemini kullanabilirsiniz. "Oyuncu Mod Aç/Kapat" ayarını açarsanız oyuncular <code>/mods</code> komutuyla istedikleri modu (yalnızca kendi ekranlarında, düşük FPS için) açıp kapatabilir. "Tam Ekran Arkaplan Slaytı" ayarını açarak yükleme çubuğunun arkasında dönen, ekranı kaplayan (1920x1080 önerilen) 5'e kadar arkaplan görseli ve isterseniz eşlik etmesi için bir MP3 arka plan müziği ekleyebilirsiniz. Her ayarın yanındaki "ℹ️ Bilgi" butonuna basarak o özelliğin ne işe yaradığını öğrenebilirsiniz.</li>
                             <li><strong>Script Oluşturun:</strong> "✓ Script Oluştur" butonuna basarak üretilen Lua kodunu önizleyin.</li>
                             <li><strong>İndirin ve Kullanın:</strong> "📥 ZIP İndir" ile paketi indirin, MTA sunucunuzun <code>resources</code> klasörüne atıp kaynağı başlatın.</li>
                         </ol>
@@ -1381,6 +2245,14 @@
                 <h2>📜 Script Önizlemesi</h2>
                 <button class="modal-close" onclick="closePreview()">&times;</button>
             </div>
+            <div class="modal-filename-bar">
+                <label for="outputFileName">📦 ZIP Dosya Adı:</label>
+                <div class="filename-input-wrap">
+                    <input type="text" id="outputFileName" value="MTA_ModLoader" maxlength="60"
+                           oninput="outputFileName = this.value">
+                    <span class="filename-suffix">.zip</span>
+                </div>
+            </div>
             <div class="modal-body">
                 <pre id="previewCode"></pre>
             </div>
@@ -1390,6 +2262,8 @@
             </div>
         </div>
     </div>
+
+    <div id="toastContainer" class="toast-container"></div>
 
     <script src="script.js"></script>
 </body>
