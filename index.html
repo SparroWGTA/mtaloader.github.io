@@ -63,10 +63,14 @@
         body.dark-mode .action-buttons,
         body.dark-mode .tabs-navigation,
         body.dark-mode .modal-body,
-        body.dark-mode .bg-audio-row,
+        body.dark-mode .bg-audio-block,
         body.dark-mode .filename-input-wrap,
         body.dark-mode .modal-filename-bar {
             background: var(--surface-alt);
+        }
+
+        body.dark-mode .bg-audio-track-row {
+            background: var(--surface-white);
         }
 
         body.dark-mode .modal-content,
@@ -80,6 +84,7 @@
         body.dark-mode .btn-bulk-id,
         body.dark-mode .btn-bg-audio-remove,
         body.dark-mode .btn-reset-settings,
+        body.dark-mode .bg-audio-track-name-input,
         body.dark-mode #outputFileName {
             background: var(--surface-white);
             color: var(--text-dark);
@@ -397,6 +402,13 @@
             margin-bottom: 0;
         }
 
+        /* Bir ayar bölümü içine gömülü, kendi başlığı olan alt bölüm (ör. MP3 Çalar Tasarımı) */
+        .settings-subsection {
+            margin-top: 18px;
+            padding-top: 18px;
+            border-top: 1.5px dashed var(--border-color);
+        }
+
         .info-btn {
             display: inline-flex;
             align-items: center;
@@ -562,7 +574,7 @@
         }
 
         .settings-section.is-disabled::after {
-            content: 'MTA Native İndirme aktifken bu ayarlar kullanılmaz';
+            content: 'Gelişmiş Mod Loader pasifken bu ayarlar kullanılmaz';
             position: absolute;
             inset: 0;
             display: flex;
@@ -675,51 +687,11 @@
             border-radius: 999px;
         }
 
-        /* Tam ekran arkaplan slaytı - opsiyonel arka plan müziği (mp3) */
-        .bg-audio-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-top: 16px;
-            padding: 14px 16px;
-            background: white;
-            border: 1.5px dashed var(--border-color);
-            border-radius: var(--radius-sm);
-        }
-
-        .bg-audio-info {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            min-width: 0;
-        }
-
+        /* Tam ekran mod loader - opsiyonel arka plan müzikleri (mp3) */
         .bg-audio-label {
             font-size: 13px;
             font-weight: 700;
             color: var(--text-dark);
-        }
-
-        .bg-audio-filename {
-            font-size: 12px;
-            color: var(--text-light);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 320px;
-        }
-
-        .bg-audio-filename.has-file {
-            color: var(--primary-dark);
-            font-weight: 600;
-        }
-
-        .bg-audio-actions {
-            display: flex;
-            gap: 8px;
-            flex-shrink: 0;
         }
 
         .btn-bg-audio-pick,
@@ -756,6 +728,144 @@
             border-color: var(--danger-color);
             color: var(--danger-color);
             background: rgba(239, 68, 68, 0.06);
+        }
+
+        /* Tam ekran mod loader - birden fazla arka plan müziği listesi */
+        .bg-audio-block {
+            margin-top: 16px;
+            padding: 14px 16px;
+            background: white;
+            border: 1.5px dashed var(--border-color);
+            border-radius: var(--radius-sm);
+        }
+
+        .bg-audio-block-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .bg-audio-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .bg-audio-empty {
+            font-size: 12px;
+            color: var(--text-light);
+        }
+
+        .bg-audio-track-row {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 8px 10px;
+            background: var(--surface-alt);
+            border-radius: var(--radius-sm);
+        }
+
+        .bg-audio-track-main {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .bg-audio-track-index {
+            flex-shrink: 0;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--primary-dark);
+            font-size: 11px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .bg-audio-track-name-input {
+            flex: 1;
+            min-width: 0;
+            padding: 7px 10px;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 12.5px;
+            font-weight: 600;
+            font-family: inherit;
+            color: var(--primary-dark);
+            background: white;
+            transition: all 0.25s ease;
+        }
+
+        .bg-audio-track-name-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px var(--shadow-color);
+        }
+
+        .bg-audio-track-file {
+            margin-left: 32px;
+            font-size: 11px;
+            color: var(--text-light);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .bg-audio-track-row .btn-bg-audio-remove {
+            border: none;
+            width: 26px;
+            height: 26px;
+            padding: 0;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Ayar başlıklarının yanında gösterilen Aktif/Pasif durum rozeti */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 11px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            flex-shrink: 0;
+        }
+
+        .status-badge-on {
+            background: rgba(34, 197, 94, 0.14);
+            color: #15803d;
+        }
+
+        .status-badge-off {
+            background: rgba(239, 68, 68, 0.12);
+            color: var(--danger-dark);
+        }
+
+        /* Loader tasarımı - ek onay kutulu ayarlar (yumuşak animasyon, gölge efekti) */
+        .checkbox-option-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-dark);
+            cursor: pointer;
+        }
+
+        .checkbox-option-row input[type="checkbox"] {
+            width: 17px;
+            height: 17px;
+            accent-color: var(--primary-color);
+            cursor: pointer;
         }
 
         #fullscreenBgBody.is-off {
@@ -2243,13 +2353,14 @@
                         <div class="settings-section-head">
                             <div class="settings-section-headtext">
                                 <div class="settings-title-row">
-                                    <h3>📡 İndirme Yöntemi</h3>
+                                    <h3>🚀 Gelişmiş Mod Loader</h3>
+                                    <span class="status-badge status-badge-on" id="advancedLoaderStatusBadge">Aktif</span>
                                     <button type="button" class="info-btn" onclick="toggleInfo('nativeDownloadDesc', this)">ℹ️ Bilgi</button>
                                 </div>
                             </div>
                             <div class="toggle-row">
                                 <label class="toggle-switch">
-                                    <input type="checkbox" id="nativeDownloadToggle" onchange="updateLoaderPreview()">
+                                    <input type="checkbox" id="advancedLoaderToggle" checked onchange="updateLoaderPreview()">
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
@@ -2257,14 +2368,15 @@
 
                         <div class="info-panel" id="nativeDownloadDesc" hidden>
                             <p class="info-panel-text">
-                                Modların oyuncuya nasıl indirileceğini belirler. <strong>Kapalıyken</strong>
-                                (varsayılan), dosyalar <code>download="false"</code> ile paketlenir; oyuncu
-                                sunucuya girdiğinde modlar sırayla indirilir ve aşağıda tasarımını
-                                özelleştirdiğiniz özel yükleme çubuğu ekranda gösterilir. <strong>Açtığınızda</strong>
-                                ise dosyalar <code>download="true"</code> ile paketlenir, indirme MTA'nın kendi
-                                senkronizasyon ekranıyla yapılır; özel yükleme ekranı (tasarım, renk, konum,
-                                geçiş süresi ayarları) devre dışı kalır ve script sadece indirilen modelleri
-                                doğrudan uygular.
+                                Modların oyuncuya nasıl indirileceğini belirler. Anahtar <strong>Aktif</strong>
+                                (varsayılan) haldeyken dosyalar <code>download="false"</code> ile paketlenir;
+                                oyuncu sunucuya girdiğinde modlar sırayla indirilir ve aşağıda tasarımını
+                                özelleştirdiğiniz Gelişmiş Mod Loader (özel yükleme ekranı, arkaplan slaytı,
+                                müzik paneli vb.) devreye girer. Anahtarı kapatıp <strong>Pasif</strong>
+                                yaptığınızda ise dosyalar <code>download="true"</code> ile paketlenir, indirme
+                                MTA'nın kendi senkronizasyon ekranıyla yapılır; Gelişmiş Mod Loader'a ait tüm
+                                tasarım/renk/konum/arkaplan/müzik ayarları devre dışı kalır ve script sadece
+                                indirilen modelleri doğrudan uygular.
                             </p>
                         </div>
                     </div>
@@ -2273,7 +2385,8 @@
                         <div class="settings-section-head">
                             <div class="settings-section-headtext">
                                 <div class="settings-title-row">
-                                    <h3>🎛️ Oyuncu Mod Aç/Kapat (<code>/mods</code>)</h3>
+                                    <h3>🎛️ Mod Açma Kapatma Komutu (<code>/mods</code>)</h3>
+                                    <span class="status-badge status-badge-off" id="modToggleStatusBadge">Pasif</span>
                                     <button type="button" class="info-btn" onclick="toggleInfo('modToggleDesc', this)">ℹ️ Bilgi</button>
                                 </div>
                             </div>
@@ -2292,7 +2405,8 @@
                                 görüntüsünü etkiler, sunucudaki veya diğer oyunculardaki görünümü değiştirmez ve
                                 düşük FPS alan oyunculara yardımcı olur. Modlar hâlâ indirilirken (yükleme ekranı
                                 açıkken) komut kullanılamaz; oyuncu "Modlar hala indiriliyor..." uyarısı alır,
-                                indirme tamamlandıktan sonra komut serbest kalır.
+                                indirme tamamlandıktan sonra komut serbest kalır. Yukarıdaki anahtarı açtığınızda
+                                rozet <strong>Aktif</strong>, kapattığınızda <strong>Pasif</strong> olur.
                             </p>
                         </div>
                     </div>
@@ -2301,7 +2415,8 @@
                         <div class="settings-section-head">
                             <div class="settings-section-headtext">
                                 <div class="settings-title-row">
-                                    <h3>🖥️ Tam Ekran Arkaplan Slaytı</h3>
+                                    <h3>🖥️ Tam Ekran Mod Loader</h3>
+                                    <span class="status-badge status-badge-off" id="fullscreenBgStatusBadge">Pasif</span>
                                     <button type="button" class="info-btn" onclick="toggleInfo('fullscreenBgDesc', this)">ℹ️ Bilgi</button>
                                 </div>
                             </div>
@@ -2316,12 +2431,22 @@
                         <div class="info-panel" id="fullscreenBgDesc" hidden>
                             <p class="info-panel-text">
                                 Açıldığında, yükleme çubuğunun arkasında ekranı uçtan uca kaplayan bir arkaplan
-                                görseli gösterilir. <strong>Birden fazla görsel eklerseniz</strong> aralarında
-                                otomatik slayt geçişi yapılır. En iyi sonuç için <strong>1920x1080</strong>
+                                görseli gösterilir. Varsayılan olarak <strong>tek bir resim slotu</strong>
+                                gelir; dilerseniz üzerine tıklayarak <strong>birden fazla görsel</strong> (en
+                                fazla 5) ekleyebilirsiniz — 2 veya daha fazla görsel eklediğinizde aralarında
+                                otomatik slayt geçişi başlar. En iyi sonuç için <strong>1920x1080</strong>
                                 boyutunda görseller kullanın; sistem, görselleri oranını koruyarak her ekran
                                 çözünürlüğünü tam kaplayacak şekilde (kırparak) otomatik ölçekler. Dilerseniz
-                                slayt gösterisine eşlik etmesi için <strong>opsiyonel bir MP3 arka plan
-                                müziği</strong> de ekleyebilirsiniz.
+                                <strong>birden fazla MP3 arka plan müziği</strong> de ekleyebilirsiniz; her
+                                parçaya istediğiniz <strong>ismi verebilir</strong>, müzik panelinin görünümünü
+                                de aşağıdaki <strong>"🎧 MP3 Çalar Tasarımı"</strong> bölümünden Loader
+                                Tasarımı'ndaki gibi ayrı ayrı özelleştirebilirsiniz. Oyuncu, yükleme ekranında
+                                açılan bu <strong>müzik panelinden</strong> parçalar arasında geçiş yapabilir,
+                                sesi tamamen kapatıp açabilir ve ses seviyesini ayarlayabilir. Bu panel açıkken
+                                fare imleci görünür olur; mod yükleme işlemi tamamlandığında hem müzik durur hem
+                                de fare imleci otomatik olarak kaybolur.
+                                Yukarıdaki anahtarı açtığınızda rozet <strong>Aktif</strong>, kapattığınızda
+                                <strong>Pasif</strong> olur.
                             </p>
                         </div>
 
@@ -2342,20 +2467,95 @@
                                 oyuncuda hazır olur ve mod dosyalarının manuel indirme kuyruğunu etkilemez.
                             </div>
 
-                            <div class="bg-audio-row">
-                                <div class="bg-audio-info">
-                                    <span class="bg-audio-label">🎵 Arkaplan Müziği (opsiyonel, MP3)</span>
-                                    <span class="bg-audio-filename" id="bgAudioFileName">Seçilmedi — yükleme ekranı sessiz olur</span>
-                                </div>
-                                <div class="bg-audio-actions">
+                            <div class="bg-audio-block">
+                                <div class="bg-audio-block-head">
+                                    <span class="bg-audio-label">🎵 Arkaplan Müzikleri (opsiyonel, birden fazla MP3 eklenebilir ve isimlendirilebilir)</span>
                                     <button type="button" class="btn-bg-audio-pick" id="bgAudioPickBtn" onclick="triggerBgAudioPicker()">🎵 MP3 Seç</button>
-                                    <button type="button" class="btn-bg-audio-remove" id="bgAudioRemoveBtn" onclick="removeBgAudio()" style="display: none;">✕ Kaldır</button>
+                                </div>
+                                <div class="bg-audio-list" id="bgAudioList">
+                                    <p class="bg-audio-empty" id="bgAudioFileName">Seçilmedi — yükleme ekranı sessiz olur</p>
+                                </div>
+                            </div>
+
+                            <div class="settings-grid">
+                                <div class="color-picker-group">
+                                    <label>Başlangıç Ses Seviyesi: <span id="bgAudioVolumeValue">60%</span></label>
+                                    <input type="range" id="bgAudioVolumeRange" min="0" max="100" step="5" value="60" oninput="updateLoaderPreview()">
+                                </div>
+                            </div>
+
+                            <div class="settings-subsection">
+                                <div class="settings-title-row">
+                                    <h3>🎧 MP3 Çalar Tasarımı</h3>
+                                    <button type="button" class="info-btn" onclick="toggleInfo('musicPanelDesignDesc', this)">ℹ️ Bilgi</button>
+                                </div>
+
+                                <div class="info-panel" id="musicPanelDesignDesc" hidden>
+                                    <p class="info-panel-text">
+                                        Oyuncunun yükleme ekranında gördüğü müzik kontrol panelinin (parça adı,
+                                        geçiş butonları, ses çubuğu) görünümünü "Loader Tasarımı" bölümündeki
+                                        mantığın aynısıyla, loader'dan tamamen bağımsız olarak özelleştirmenizi
+                                        sağlar. <strong>Panel Konumu:</strong> "Yükleme Panelinin Üstü"
+                                        seçiliyse müzik paneli, seçtiğiniz yükleme ekranı konumuna göre otomatik
+                                        olarak bir satır üstte konumlanır; diğer seçeneklerde ekranın belirtilen
+                                        köşesinde sabit durur. <strong>Panel Arkaplan Rengi</strong> ve
+                                        <strong>Yazı Rengi</strong> panelin zemin ve metin renklerini,
+                                        <strong>Vurgu Rengi</strong> üst başlık şeridi ile ses seviyesi
+                                        çubuğunun dolgusunu belirler. <strong>Panel Şeffaflığı</strong> zeminin
+                                        saydamlığını, <strong>Gölge Efekti</strong> ise panelin arkasına hafif
+                                        bir gölge eklenip eklenmeyeceğini ayarlar.
+                                    </p>
+                                </div>
+
+                                <div class="settings-grid">
+                                    <div class="color-picker-group">
+                                        <label>Panel Konumu:</label>
+                                        <select class="loader-style-select" id="musicPanelPosition" onchange="updateLoaderPreview()">
+                                            <option value="aboveLoader">Yükleme Panelinin Üstü</option>
+                                            <option value="topRight">Sağ Üst</option>
+                                            <option value="topLeft">Sol Üst</option>
+                                            <option value="bottomRight">Sağ Alt</option>
+                                            <option value="bottomLeft">Sol Alt</option>
+                                        </select>
+                                    </div>
+                                    <div class="color-picker-group">
+                                        <label>Panel Arkaplan Rengi:</label>
+                                        <div class="color-picker-wrapper">
+                                            <input type="color" id="musicBgColor" value="#101827" onchange="updateLoaderPreview()">
+                                            <span class="color-value" id="musicBgColorValue">#101827</span>
+                                        </div>
+                                    </div>
+                                    <div class="color-picker-group">
+                                        <label>Vurgu Rengi:</label>
+                                        <div class="color-picker-wrapper">
+                                            <input type="color" id="musicAccentColor" value="#2196F3" onchange="updateLoaderPreview()">
+                                            <span class="color-value" id="musicAccentColorValue">#2196F3</span>
+                                        </div>
+                                    </div>
+                                    <div class="color-picker-group">
+                                        <label>Yazı Rengi:</label>
+                                        <div class="color-picker-wrapper">
+                                            <input type="color" id="musicTextColor" value="#e2e8f0" onchange="updateLoaderPreview()">
+                                            <span class="color-value" id="musicTextColorValue">#e2e8f0</span>
+                                        </div>
+                                    </div>
+                                    <div class="color-picker-group">
+                                        <label>Panel Şeffaflığı: <span id="musicOpacityValue">92%</span></label>
+                                        <input type="range" id="musicOpacityRange" min="20" max="100" step="5" value="92" oninput="updateLoaderPreview()">
+                                    </div>
+                                    <div class="color-picker-group">
+                                        <label>&nbsp;</label>
+                                        <label class="checkbox-option-row">
+                                            <input type="checkbox" id="musicShadowEffectToggle" checked onchange="updateLoaderPreview()">
+                                            Gölge Efekti
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <input type="file" id="bgImageFileInput" accept="image/*" style="display: none;">
-                        <input type="file" id="bgAudioFileInput" accept=".mp3,audio/mpeg" style="display: none;">
+                        <input type="file" id="bgImageFileInput" accept="image/*" multiple style="display: none;">
+                        <input type="file" id="bgAudioFileInput" accept=".mp3,audio/mpeg" multiple style="display: none;">
                     </div>
 
                     <div class="settings-section" id="loaderStyleSection">
@@ -2378,7 +2578,10 @@
                                 (segmentlere) bölündüğü, oyun menülerine benzeyen bir görünüm.
                                 <strong>Yüzde Vurgulu:</strong> yüzde değerinin büyük punto ile öne çıktığı
                                 tasarım. Seçtiğiniz tarzı aşağıdaki "Loader Ön İzleme" alanından canlı olarak
-                                görebilirsiniz.
+                                görebilirsiniz. <strong>Panel Şeffaflığı:</strong> panel/çubuk zemininin
+                                saydamlığını ayarlar. <strong>Yumuşak Animasyon:</strong> yüzde ilerlemesinin
+                                aniden değil, akıcı bir şekilde kaymasını sağlar. <strong>Gölge Efekti:</strong>
+                                panelin arkasına hafif bir gölge ekleyerek derinlik hissi verir.
                             </p>
                         </div>
 
@@ -2391,6 +2594,24 @@
                                     <option value="segmented">Bölmeli Bar</option>
                                     <option value="sideLabel">Yüzde Vurgulu</option>
                                 </select>
+                            </div>
+                            <div class="color-picker-group">
+                                <label>Panel Şeffaflığı: <span id="bgOpacityValue">100%</span></label>
+                                <input type="range" id="bgOpacityRange" min="20" max="100" step="5" value="100" oninput="updateLoaderPreview()">
+                            </div>
+                            <div class="color-picker-group">
+                                <label>&nbsp;</label>
+                                <label class="checkbox-option-row">
+                                    <input type="checkbox" id="smoothAnimationToggle" checked onchange="updateLoaderPreview()">
+                                    Yumuşak Animasyon
+                                </label>
+                            </div>
+                            <div class="color-picker-group">
+                                <label>&nbsp;</label>
+                                <label class="checkbox-option-row">
+                                    <input type="checkbox" id="shadowEffectToggle" checked onchange="updateLoaderPreview()">
+                                    Gölge Efekti
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -2504,7 +2725,14 @@
                                 <strong>1-2 saniye</strong> gibi tutmak indirmelerin daha akıcı ve yükleme
                                 çubuğunun daha okunabilir görünmesini sağlar; mod sayısı fazlaysa bu süre
                                 toplam yükleme süresini uzatabileceğinden <strong>düşük tutulması</strong>
-                                önerilir.
+                                önerilir. <strong>Chat ve HUD'u Yükleme Sırasında Gizle</strong> açıkken,
+                                modlar indirilmeye başladığı an oyuncunun chat kutusu (showChat) ve tüm HUD
+                                bileşenleri (showPlayerHudComponent ile sağlık, radar, para vb.) otomatik
+                                olarak gizlenir; yükleme çubuğuyla karışıp kalabalık bir görüntü oluşmasını
+                                engeller. Tüm modlar yüklendiğinde ikisi de otomatik olarak tekrar açılır; bu
+                                ayar yalnızca "Gelişmiş Mod Loader" aktifken (özel yükleme ekranı kullanıldığında)
+                                etkilidir, MTA Native İndirme'de bir yükleme ekranı gösterilmediği için hiçbir
+                                etkisi olmaz.
                             </p>
                         </div>
 
@@ -2512,6 +2740,13 @@
                             <div class="color-picker-group">
                                 <label>Mod Geçiş Süresi: <span id="modDelayValue">1</span> sn</label>
                                 <input type="range" id="modDelayRange" min="0" max="10" step="0.5" value="1" oninput="updateLoaderPreview()">
+                            </div>
+                            <div class="color-picker-group">
+                                <label>&nbsp;</label>
+                                <label class="checkbox-option-row">
+                                    <input type="checkbox" id="hideHudToggle" checked onchange="updateLoaderPreview()">
+                                    Chat ve HUD'u Yükleme Sırasında Gizle
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -2533,8 +2768,8 @@
                                 görüneceğini örnek bir "Test Modu (%45)" verisiyle <strong>canlı olarak</strong>
                                 gösterir. Yaptığınız her değişiklik <strong>anında</strong> bu önizlemeye
                                 yansır; script oluşturmadan önce tasarımı buradan kontrol edebilirsiniz.
-                                "MTA Native İndirme" açıkken özel yükleme ekranı kullanılmayacağı için bu
-                                önizleme devre dışı kalır.
+                                "Gelişmiş Mod Loader" pasif haldeyken (MTA Native İndirme kullanıldığında) özel
+                                yükleme ekranı kullanılmayacağı için bu önizleme devre dışı kalır.
                             </p>
                         </div>
 
@@ -2603,7 +2838,7 @@
                         <ol class="info-steps">
                             <li><strong>Mod Yükleyin:</strong> İlgili sekmeye (Araçlar, Karakterler, Objeler, Silahlar) dosyalarınızı sürükleyip bırakın veya "Dosyaları Seç" ile ekleyin.</li>
                             <li><strong>Kontrol Edin:</strong> "Yüklenen Modlar" listesinden ID ve mod adlarını gerekirse düzenleyin; istemediğiniz modları tek tek veya seçerek toplu şekilde silebilirsiniz.</li>
-                            <li><strong>Görünümü Özelleştirin:</strong> "Ayarlar" sekmesinden yükleme ekranının rengini, konumunu, boyutunu ve modlar arası geçiş süresini ayarlayın. Dilerseniz "İndirme Yöntemi" bölümünden özel yükleme ekranını kapatıp MTA'nın kendi <code>download="true"</code> indirme sistemini kullanabilirsiniz. "Oyuncu Mod Aç/Kapat" ayarını açarsanız oyuncular <code>/mods</code> komutuyla istedikleri modu (yalnızca kendi ekranlarında, düşük FPS için) açıp kapatabilir. "Tam Ekran Arkaplan Slaytı" ayarını açarak yükleme çubuğunun arkasında dönen, ekranı kaplayan (1920x1080 önerilen) 5'e kadar arkaplan görseli ve isterseniz eşlik etmesi için bir MP3 arka plan müziği ekleyebilirsiniz. Her ayarın yanındaki "ℹ️ Bilgi" butonuna basarak o özelliğin ne işe yaradığını öğrenebilirsiniz.</li>
+                            <li><strong>Görünümü Özelleştirin:</strong> "Ayarlar" sekmesinden yükleme ekranının rengini, konumunu, boyutunu, şeffaflığını, gölge/animasyon efektlerini ve modlar arası geçiş süresini ayarlayın. Dilerseniz "Gelişmiş Mod Loader" ayarını pasif hale getirip MTA'nın kendi <code>download="true"</code> indirme sistemini kullanabilirsiniz. "Mod Açma Kapatma Komutu" ayarını açarsanız oyuncular <code>/mods</code> komutuyla istedikleri modu (yalnızca kendi ekranlarında, düşük FPS için) açıp kapatabilir. "Tam Ekran Mod Loader" ayarını açarak yükleme çubuğunun arkasında dönen, ekranı kaplayan (1920x1080 önerilen) 5'e kadar arkaplan görseli ve isterseniz birden fazla MP3 arka plan müziği ekleyebilirsiniz; oyuncular yükleme ekranındaki müzik panelinden parçalar arasında geçiş yapıp sesi açıp kapatabilir ve ses seviyesini ayarlayabilir. Her ayarın yanındaki "ℹ️ Bilgi" butonuna basarak o özelliğin ne işe yaradığını öğrenebilirsiniz.</li>
                             <li><strong>Script Oluşturun:</strong> "✓ Script Oluştur" butonuna basarak üretilen Lua kodunu önizleyin.</li>
                             <li><strong>İndirin ve Kullanın:</strong> "📥 ZIP İndir" ile paketi indirin, MTA sunucunuzun <code>resources</code> klasörüne atıp kaynağı başlatın.</li>
                         </ol>
@@ -2703,6 +2938,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=4"></script>
+    <script src="script.js?v=10"></script>
 </body>
 </html>

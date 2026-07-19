@@ -250,24 +250,47 @@ const DEFAULT_LOADER_SETTINGS = {
     nativeDownload: false,
     modToggleEnabled: false,
     fullscreenBgEnabled: false,
-    bgSlideInterval: 5
+    bgSlideInterval: 5,
+    bgAudioVolume: 60,
+    bgOpacity: 100,
+    smoothAnimation: true,
+    shadowEffect: true,
+    musicPanelPosition: 'aboveLoader',
+    musicBgColor: '#101827',
+    musicAccentColor: '#2196F3',
+    musicTextColor: '#e2e8f0',
+    musicOpacity: 92,
+    musicShadowEffect: true,
+    hideHudDuringLoading: true
 };
 
 const loaderSettings = { ...DEFAULT_LOADER_SETTINGS };
 
-// Tam ekran arkaplan slaytı için seçilen görseller (en fazla 5 adet).
+// Tam ekran mod loader için seçilen görseller (en fazla 5 adet).
 // Her öğe: { file: File, dataUrl: string }
 const MAX_BG_IMAGES = 5;
 let bgImages = [];
 
-// Tam ekran arkaplan slaytına eşlik eden opsiyonel MP3 arka plan müziği.
-// { file: File } veya seçilmemişse null.
-let bgAudio = null;
+// Tam ekran mod loader'a eşlik eden opsiyonel MP3 arka plan müzikleri (birden fazla olabilir).
+// Her öğe: { file: File, name: string } -- name, oyuncuya müzik panelinde gösterilen,
+// kullanıcının değiştirebildiği parça adıdır (varsayılan olarak dosya adından türetilir).
+const MAX_BG_AUDIO = 8;
+let bgAudioTracks = [];
 
-// Seçilen mp3 dosyasını "Loader/bgmusic.uzantı" yoluyla eşleştirir.
-function getBgAudioEntry() {
-    if (!bgAudio) return null;
-    return { path: 'Loader/bgmusic.mp3', fileName: 'bgmusic.mp3', file: bgAudio.file };
+// Dosya adından uzantısız, okunabilir bir varsayılan parça adı türetir (ör. "song.mp3" -> "song").
+function deriveDefaultTrackName(fileName) {
+    const withoutExt = fileName.replace(/\.[^./\\]+$/, '');
+    return withoutExt || fileName;
+}
+
+// Seçilen mp3 dosyalarını "Loader/bgmusicN.uzantı" yollarıyla eşleştirir.
+// Hem Lua script üretiminde hem de meta.xml/ZIP paketlemede kullanılır.
+function getBgAudioEntries() {
+    return bgAudioTracks.map((track, idx) => {
+        const rawExt = (track.file.name.split('.').pop() || 'mp3').toLowerCase();
+        const ext = rawExt === 'mp3' ? 'mp3' : 'mp3';
+        return { path: `Loader/bgmusic${idx + 1}.${ext}`, fileName: `bgmusic${idx + 1}.${ext}`, file: track.file };
+    });
 }
 
 // Yüklenen arkaplan görsellerini "Loader/bgN.uzantı" yollarıyla eşleştirir.
@@ -433,36 +456,75 @@ function setupBgImageInputs() {
     if (!bgImageFileInput) return;
 
     bgImageFileInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
+        const files = Array.from(e.target.files || []);
         e.target.value = '';
-        if (!file) return;
+        if (!files.length) return;
 
-        if (!file.type.startsWith('image/')) {
-            showToast('Lütfen bir görsel dosyası seçin (jpg, png vb.)', 'error');
-            return;
-        }
-        if (bgImages.length >= MAX_BG_IMAGES) {
-            showToast(`En fazla ${MAX_BG_IMAGES} arkaplan görseli ekleyebilirsiniz.`, 'warning');
-            return;
-        }
+        let addedCount = 0;
+        let rejectedType = 0;
+        let rejectedFull = 0;
+        let mismatchedSize = 0;
+        let pending = 0;
+        const addedNames = [];
 
-        const reader = new FileReader();
-        reader.onload = function(ev) {
-            bgImages.push({ file, dataUrl: ev.target.result });
-            renderBgImageSlots();
-            updateLoaderPreview();
-
-            // Önerilen 1920x1080 boyutuna uymayan görseller için bilgilendirme (engelleme yok,
-            // çünkü oyun içinde görsel her çözünürlüğe "cover" mantığıyla otomatik ölçeklenir).
-            const checkImg = new Image();
-            checkImg.onload = function() {
-                if (checkImg.naturalWidth !== 1920 || checkImg.naturalHeight !== 1080) {
-                    showToast(`Önerilen boyut 1920x1080. Seçtiğiniz görsel ${checkImg.naturalWidth}x${checkImg.naturalHeight}; yine de eklendi, farklı çözünürlükte de düzgün gösterilecektir.`, 'warning');
-                }
-            };
-            checkImg.src = ev.target.result;
+        const finalizeIfDone = () => {
+            if (pending > 0) return;
+            if (addedCount > 0) {
+                showToast(addedCount === 1
+                    ? `"${addedNames[0]}" arkaplan görseli olarak eklendi.`
+                    : `${addedCount} adet arkaplan görseli eklendi.`, 'success');
+            }
+            if (mismatchedSize > 0) {
+                showToast(`${mismatchedSize} görsel 1920x1080 boyutunda değil; yine de eklendi, farklı çözünürlükte de düzgün gösterilecektir.`, 'warning');
+            }
+            if (rejectedType > 0) {
+                showToast('Bazı dosyalar görsel olmadığı için eklenmedi.', 'error');
+            }
+            if (rejectedFull > 0) {
+                showToast(`En fazla ${MAX_BG_IMAGES} arkaplan görseli ekleyebilirsiniz.`, 'warning');
+            }
         };
-        reader.readAsDataURL(file);
+
+        files.forEach(file => {
+            // Bu parti içinde şimdiye kadar kuyruğa alınanları da sayarak sınırı kontrol et.
+            if (bgImages.length + pending >= MAX_BG_IMAGES) {
+                rejectedFull++;
+                return;
+            }
+            if (!file.type.startsWith('image/')) {
+                rejectedType++;
+                return;
+            }
+
+            pending++;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                bgImages.push({ file, dataUrl: ev.target.result });
+                addedCount++;
+                addedNames.push(file.name);
+                renderBgImageSlots();
+                updateLoaderPreview();
+
+                // Önerilen 1920x1080 boyutuna uymayan görseller için bilgilendirme (engelleme yok,
+                // çünkü oyun içinde görsel her çözünürlüğe "cover" mantığıyla otomatik ölçeklenir).
+                const checkImg = new Image();
+                checkImg.onload = function() {
+                    if (checkImg.naturalWidth !== 1920 || checkImg.naturalHeight !== 1080) {
+                        mismatchedSize++;
+                    }
+                    pending--;
+                    finalizeIfDone();
+                };
+                checkImg.onerror = function() {
+                    pending--;
+                    finalizeIfDone();
+                };
+                checkImg.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        if (pending === 0) finalizeIfDone();
     });
 
     renderBgImageSlots();
@@ -482,37 +544,40 @@ function removeBgImage(index) {
     updateLoaderPreview();
 }
 
+// Slotlar tek bir "resim ekle" kutusuyla başlar; her resim eklendikçe bir sonraki
+// boş slot otomatik olarak belirir (en fazla MAX_BG_IMAGES adede kadar). Yani
+// varsayılan olarak tek resim slotu görünür, isteyen kullanıcı üzerine tıklayarak
+// birden fazla resim ekleyebilir.
 function renderBgImageSlots() {
     const container = document.getElementById('bgImageSlots');
     if (!container) return;
 
     let html = '';
-    for (let i = 0; i < MAX_BG_IMAGES; i++) {
-        const img = bgImages[i];
-        if (img) {
-            html += `
-                <div class="bg-image-slot filled">
-                    <img src="${img.dataUrl}" alt="Arkaplan ${i + 1}">
-                    <span class="bg-image-slot-index">${i + 1}</span>
-                    <button type="button" class="bg-image-slot-remove" onclick="removeBgImage(${i})" title="Kaldır">&times;</button>
+    bgImages.forEach((img, i) => {
+        html += `
+            <div class="bg-image-slot filled">
+                <img src="${img.dataUrl}" alt="Arkaplan ${i + 1}">
+                <span class="bg-image-slot-index">${i + 1}</span>
+                <button type="button" class="bg-image-slot-remove" onclick="removeBgImage(${i})" title="Kaldır">&times;</button>
+            </div>
+        `;
+    });
+
+    if (bgImages.length < MAX_BG_IMAGES) {
+        html += `
+            <div class="bg-image-slot" onclick="triggerBgImagePicker()">
+                <div class="bg-image-slot-placeholder">
+                    <span class="plus-icon">+</span>
+                    <span>${bgImages.length === 0 ? 'Resim Ekle' : `Resim ${bgImages.length + 1}`}</span>
                 </div>
-            `;
-        } else {
-            html += `
-                <div class="bg-image-slot" onclick="triggerBgImagePicker()">
-                    <div class="bg-image-slot-placeholder">
-                        <span class="plus-icon">+</span>
-                        <span>Resim ${i + 1}</span>
-                    </div>
-                </div>
-            `;
-        }
+            </div>
+        `;
     }
     container.innerHTML = html;
 }
 
 // ============================================
-// TAM EKRAN ARKAPLAN SLAYTI - OPSİYONEL MP3 ARKA PLAN MÜZİĞİ
+// TAM EKRAN MOD LOADER - OPSİYONEL MP3 ARKA PLAN MÜZİKLERİ (BİRDEN FAZLA)
 // ============================================
 let bgAudioFileInput;
 
@@ -521,46 +586,101 @@ function setupBgAudioInput() {
     if (!bgAudioFileInput) return;
 
     bgAudioFileInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
+        const files = Array.from(e.target.files || []);
         e.target.value = '';
-        if (!file) return;
+        if (!files.length) return;
 
-        const isMp3 = file.type === 'audio/mpeg' || /\.mp3$/i.test(file.name);
-        if (!isMp3) {
-            showToast('Lütfen bir MP3 dosyası seçin.', 'error');
-            return;
+        let addedCount = 0;
+        let rejectedType = 0;
+        let rejectedFull = 0;
+
+        files.forEach(file => {
+            if (bgAudioTracks.length >= MAX_BG_AUDIO) {
+                rejectedFull++;
+                return;
+            }
+            const isMp3 = file.type === 'audio/mpeg' || /\.mp3$/i.test(file.name);
+            if (!isMp3) {
+                rejectedType++;
+                return;
+            }
+            bgAudioTracks.push({ file, name: deriveDefaultTrackName(file.name) });
+            addedCount++;
+        });
+
+        if (addedCount > 0) {
+            renderBgAudioList();
+            showToast(addedCount === 1
+                ? `"${files[0].name}" arka plan müziği olarak eklendi.`
+                : `${addedCount} adet arka plan müziği eklendi.`, 'success');
         }
-
-        bgAudio = { file };
-        renderBgAudioInfo();
-        showToast(`"${file.name}" arka plan müziği olarak eklendi.`, 'success');
+        if (rejectedType > 0) {
+            showToast('Bazı dosyalar MP3 olmadığı için eklenmedi.', 'error');
+        }
+        if (rejectedFull > 0) {
+            showToast(`En fazla ${MAX_BG_AUDIO} müzik parçası ekleyebilirsiniz.`, 'warning');
+        }
     });
 
-    renderBgAudioInfo();
+    renderBgAudioList();
 }
 
 function triggerBgAudioPicker() {
+    if (bgAudioTracks.length >= MAX_BG_AUDIO) {
+        showToast(`En fazla ${MAX_BG_AUDIO} müzik parçası ekleyebilirsiniz.`, 'warning');
+        return;
+    }
     if (bgAudioFileInput) bgAudioFileInput.click();
 }
 
-function removeBgAudio() {
-    bgAudio = null;
-    renderBgAudioInfo();
+function removeBgAudioTrack(index) {
+    bgAudioTracks.splice(index, 1);
+    renderBgAudioList();
 }
 
-function renderBgAudioInfo() {
-    const nameEl = document.getElementById('bgAudioFileName');
-    const removeBtn = document.getElementById('bgAudioRemoveBtn');
-    if (!nameEl || !removeBtn) return;
+// Oyuncuya müzik panelinde gösterilecek parça adını günceller; boş bırakılırsa
+// dosya adından türetilen varsayılan isme geri döner.
+function updateBgAudioTrackName(index, newName) {
+    const track = bgAudioTracks[index];
+    if (!track) return;
+    const trimmed = newName.trim();
+    track.name = trimmed || deriveDefaultTrackName(track.file.name);
+    renderBgAudioList();
+}
 
-    if (bgAudio) {
-        nameEl.textContent = `🎵 ${bgAudio.file.name}`;
-        nameEl.classList.add('has-file');
-        removeBtn.style.display = 'inline-flex';
+// Müzik parçalarını liste halinde gösterir; en az bir parça olduğunda "Ekle"
+// butonu listenin altında kalır, hiç parça yokken tek bir bilgi satırı + ekle
+// butonu gösterilir. Her satırda parçaya isim vermek için düzenlenebilir bir
+// alan ve altında orijinal dosya adı bulunur.
+function renderBgAudioList() {
+    const listEl = document.getElementById('bgAudioList');
+    const addBtn = document.getElementById('bgAudioPickBtn');
+    if (!listEl) return;
+
+    if (bgAudioTracks.length === 0) {
+        listEl.innerHTML = `<p class="bg-audio-empty" id="bgAudioFileName">Seçilmedi — yükleme ekranı sessiz olur</p>`;
     } else {
-        nameEl.textContent = 'Seçilmedi — yükleme ekranı sessiz olur';
-        nameEl.classList.remove('has-file');
-        removeBtn.style.display = 'none';
+        listEl.innerHTML = bgAudioTracks.map((track, i) => {
+            const safeName = (track.name || '').replace(/"/g, '&quot;');
+            const safeFileName = track.file.name.replace(/"/g, '&quot;');
+            return `
+            <div class="bg-audio-track-row">
+                <div class="bg-audio-track-main">
+                    <span class="bg-audio-track-index">${i + 1}</span>
+                    <input type="text" class="bg-audio-track-name-input" value="${safeName}"
+                           maxlength="60" placeholder="Parça adı"
+                           onchange="updateBgAudioTrackName(${i}, this.value)">
+                    <button type="button" class="btn-bg-audio-remove" onclick="removeBgAudioTrack(${i})" title="Kaldır">✕</button>
+                </div>
+                <div class="bg-audio-track-file" title="${safeFileName}">🎵 ${track.file.name}</div>
+            </div>
+        `;
+        }).join('');
+    }
+
+    if (addBtn) {
+        addBtn.textContent = bgAudioTracks.length === 0 ? '🎵 MP3 Seç' : '🎵 Başka MP3 Ekle';
+        addBtn.disabled = bgAudioTracks.length >= MAX_BG_AUDIO;
     }
 }
 
@@ -574,7 +694,7 @@ async function resetSettings() {
         return;
     }
 
-    document.getElementById('nativeDownloadToggle').checked = DEFAULT_LOADER_SETTINGS.nativeDownload;
+    document.getElementById('advancedLoaderToggle').checked = !DEFAULT_LOADER_SETTINGS.nativeDownload;
     document.getElementById('modToggleToggle').checked = DEFAULT_LOADER_SETTINGS.modToggleEnabled;
     document.getElementById('loaderStyle').value = DEFAULT_LOADER_SETTINGS.style;
     document.getElementById('primaryColor').value = DEFAULT_LOADER_SETTINGS.primaryColor;
@@ -586,6 +706,29 @@ async function resetSettings() {
     document.getElementById('modDelayRange').value = DEFAULT_LOADER_SETTINGS.modDelay;
     document.getElementById('fullscreenBgToggle').checked = DEFAULT_LOADER_SETTINGS.fullscreenBgEnabled;
     document.getElementById('bgSlideIntervalRange').value = DEFAULT_LOADER_SETTINGS.bgSlideInterval;
+    const bgAudioVolumeRange = document.getElementById('bgAudioVolumeRange');
+    if (bgAudioVolumeRange) bgAudioVolumeRange.value = DEFAULT_LOADER_SETTINGS.bgAudioVolume;
+    const bgOpacityRange = document.getElementById('bgOpacityRange');
+    if (bgOpacityRange) bgOpacityRange.value = DEFAULT_LOADER_SETTINGS.bgOpacity;
+    const smoothAnimationToggle = document.getElementById('smoothAnimationToggle');
+    if (smoothAnimationToggle) smoothAnimationToggle.checked = DEFAULT_LOADER_SETTINGS.smoothAnimation;
+    const shadowEffectToggle = document.getElementById('shadowEffectToggle');
+    if (shadowEffectToggle) shadowEffectToggle.checked = DEFAULT_LOADER_SETTINGS.shadowEffect;
+
+    const musicPanelPositionEl = document.getElementById('musicPanelPosition');
+    if (musicPanelPositionEl) musicPanelPositionEl.value = DEFAULT_LOADER_SETTINGS.musicPanelPosition;
+    const musicBgColorEl = document.getElementById('musicBgColor');
+    if (musicBgColorEl) musicBgColorEl.value = DEFAULT_LOADER_SETTINGS.musicBgColor;
+    const musicAccentColorEl = document.getElementById('musicAccentColor');
+    if (musicAccentColorEl) musicAccentColorEl.value = DEFAULT_LOADER_SETTINGS.musicAccentColor;
+    const musicTextColorEl = document.getElementById('musicTextColor');
+    if (musicTextColorEl) musicTextColorEl.value = DEFAULT_LOADER_SETTINGS.musicTextColor;
+    const musicOpacityEl = document.getElementById('musicOpacityRange');
+    if (musicOpacityEl) musicOpacityEl.value = DEFAULT_LOADER_SETTINGS.musicOpacity;
+    const musicShadowEffectEl = document.getElementById('musicShadowEffectToggle');
+    if (musicShadowEffectEl) musicShadowEffectEl.checked = DEFAULT_LOADER_SETTINGS.musicShadowEffect;
+    const hideHudToggleEl = document.getElementById('hideHudToggle');
+    if (hideHudToggleEl) hideHudToggleEl.checked = DEFAULT_LOADER_SETTINGS.hideHudDuringLoading;
 
     updateLoaderPreview();
 }
@@ -602,11 +745,34 @@ function updateLoaderPreview() {
     const barWidth = document.getElementById('barWidthRange').value;
     const fontSize = document.getElementById('fontSizeRange').value;
     const modDelay = document.getElementById('modDelayRange').value;
-    const nativeDownload = document.getElementById('nativeDownloadToggle').checked;
+    const nativeDownload = !document.getElementById('advancedLoaderToggle').checked;
     const modToggleEnabled = document.getElementById('modToggleToggle').checked;
     const fullscreenBgEnabled = document.getElementById('fullscreenBgToggle').checked;
     const bgSlideInterval = document.getElementById('bgSlideIntervalRange').value;
-    
+    const bgAudioVolumeEl = document.getElementById('bgAudioVolumeRange');
+    const bgAudioVolume = bgAudioVolumeEl ? bgAudioVolumeEl.value : DEFAULT_LOADER_SETTINGS.bgAudioVolume;
+    const bgOpacityEl = document.getElementById('bgOpacityRange');
+    const bgOpacity = bgOpacityEl ? bgOpacityEl.value : DEFAULT_LOADER_SETTINGS.bgOpacity;
+    const smoothAnimationEl = document.getElementById('smoothAnimationToggle');
+    const smoothAnimation = smoothAnimationEl ? smoothAnimationEl.checked : DEFAULT_LOADER_SETTINGS.smoothAnimation;
+    const shadowEffectEl = document.getElementById('shadowEffectToggle');
+    const shadowEffect = shadowEffectEl ? shadowEffectEl.checked : DEFAULT_LOADER_SETTINGS.shadowEffect;
+
+    const musicPanelPositionEl = document.getElementById('musicPanelPosition');
+    const musicPanelPosition = musicPanelPositionEl ? musicPanelPositionEl.value : DEFAULT_LOADER_SETTINGS.musicPanelPosition;
+    const musicBgColorEl = document.getElementById('musicBgColor');
+    const musicBgColor = musicBgColorEl ? musicBgColorEl.value : DEFAULT_LOADER_SETTINGS.musicBgColor;
+    const musicAccentColorEl = document.getElementById('musicAccentColor');
+    const musicAccentColor = musicAccentColorEl ? musicAccentColorEl.value : DEFAULT_LOADER_SETTINGS.musicAccentColor;
+    const musicTextColorEl = document.getElementById('musicTextColor');
+    const musicTextColor = musicTextColorEl ? musicTextColorEl.value : DEFAULT_LOADER_SETTINGS.musicTextColor;
+    const musicOpacityEl = document.getElementById('musicOpacityRange');
+    const musicOpacity = musicOpacityEl ? musicOpacityEl.value : DEFAULT_LOADER_SETTINGS.musicOpacity;
+    const musicShadowEffectEl = document.getElementById('musicShadowEffectToggle');
+    const musicShadowEffect = musicShadowEffectEl ? musicShadowEffectEl.checked : DEFAULT_LOADER_SETTINGS.musicShadowEffect;
+    const hideHudToggleEl = document.getElementById('hideHudToggle');
+    const hideHudDuringLoading = hideHudToggleEl ? hideHudToggleEl.checked : DEFAULT_LOADER_SETTINGS.hideHudDuringLoading;
+
     document.getElementById('primaryColorValue').textContent = primaryColor;
     document.getElementById('bgColorValue').textContent = bgColor;
     document.getElementById('textColorValue').textContent = textColor;
@@ -614,7 +780,19 @@ function updateLoaderPreview() {
     document.getElementById('fontSizeValue').textContent = `${fontSize}px`;
     document.getElementById('modDelayValue').textContent = modDelay;
     document.getElementById('bgSlideIntervalValue').textContent = bgSlideInterval;
-    
+    const bgAudioVolumeValueEl = document.getElementById('bgAudioVolumeValue');
+    if (bgAudioVolumeValueEl) bgAudioVolumeValueEl.textContent = `${bgAudioVolume}%`;
+    const bgOpacityValueEl = document.getElementById('bgOpacityValue');
+    if (bgOpacityValueEl) bgOpacityValueEl.textContent = `${bgOpacity}%`;
+    const musicBgColorValueEl = document.getElementById('musicBgColorValue');
+    if (musicBgColorValueEl) musicBgColorValueEl.textContent = musicBgColor;
+    const musicAccentColorValueEl = document.getElementById('musicAccentColorValue');
+    if (musicAccentColorValueEl) musicAccentColorValueEl.textContent = musicAccentColor;
+    const musicTextColorValueEl = document.getElementById('musicTextColorValue');
+    if (musicTextColorValueEl) musicTextColorValueEl.textContent = musicTextColor;
+    const musicOpacityValueEl = document.getElementById('musicOpacityValue');
+    if (musicOpacityValueEl) musicOpacityValueEl.textContent = `${musicOpacity}%`;
+
     loaderSettings.style = style;
     loaderSettings.primaryColor = primaryColor;
     loaderSettings.bgColor = bgColor;
@@ -627,6 +805,30 @@ function updateLoaderPreview() {
     loaderSettings.modToggleEnabled = modToggleEnabled;
     loaderSettings.fullscreenBgEnabled = fullscreenBgEnabled;
     loaderSettings.bgSlideInterval = parseFloat(bgSlideInterval);
+    loaderSettings.bgAudioVolume = parseInt(bgAudioVolume, 10);
+    loaderSettings.bgOpacity = parseInt(bgOpacity, 10);
+    loaderSettings.smoothAnimation = smoothAnimation;
+    loaderSettings.shadowEffect = shadowEffect;
+    loaderSettings.musicPanelPosition = musicPanelPosition;
+    loaderSettings.musicBgColor = musicBgColor;
+    loaderSettings.musicAccentColor = musicAccentColor;
+    loaderSettings.musicTextColor = musicTextColor;
+    loaderSettings.musicOpacity = parseInt(musicOpacity, 10);
+    loaderSettings.musicShadowEffect = musicShadowEffect;
+    loaderSettings.hideHudDuringLoading = hideHudDuringLoading;
+
+    // Ayar rozetleri: her switch kendi anahtar konumunu doğrudan yansıtır
+    // (anahtar açıksa "Aktif", kapalıysa "Pasif" - başka bir mantığa göre ters çevrilmez).
+    const setStatusBadge = (id, isOn) => {
+        const badge = document.getElementById(id);
+        if (!badge) return;
+        badge.textContent = isOn ? 'Aktif' : 'Pasif';
+        badge.classList.toggle('status-badge-on', isOn);
+        badge.classList.toggle('status-badge-off', !isOn);
+    };
+    setStatusBadge('advancedLoaderStatusBadge', !nativeDownload);
+    setStatusBadge('modToggleStatusBadge', modToggleEnabled);
+    setStatusBadge('fullscreenBgStatusBadge', fullscreenBgEnabled);
 
     // Arkaplan slaytı gövdesi sadece açıkken (ve native indirme kapalıyken) etkileşimli olsun
     const fullscreenBgBody = document.getElementById('fullscreenBgBody');
@@ -1324,12 +1526,15 @@ function generateClientLua() {
     const primaryRgb = hexToRgb(loaderSettings.primaryColor);
     const bgRgb = hexToRgb(loaderSettings.bgColor);
     const textRgb = hexToRgb(loaderSettings.textColor);
-    // Tam ekran arkaplan slaytı sadece özel loader arayüzü ile birlikte anlamlıdır (native indirmede yok)
+    const musicBgRgb = hexToRgb(loaderSettings.musicBgColor);
+    const musicAccentRgb = hexToRgb(loaderSettings.musicAccentColor);
+    const musicTextRgb = hexToRgb(loaderSettings.musicTextColor);
+    // Tam ekran mod loader sadece özel loader arayüzü ile birlikte anlamlıdır (native indirmede yok)
     const bgSlideEnabled = loaderSettings.fullscreenBgEnabled && !loaderSettings.nativeDownload && bgImages.length > 0;
     const bgImageEntries = bgSlideEnabled ? getBgImageEntries() : [];
-    // Arka plan müziği, tam ekran arkaplan slaytı açıkken ve bir mp3 seçilmişse etkin olur.
-    const audioEnabled = loaderSettings.fullscreenBgEnabled && !loaderSettings.nativeDownload && bgAudio !== null;
-    const bgAudioEntry = audioEnabled ? getBgAudioEntry() : null;
+    // Arka plan müzikleri, tam ekran mod loader açıkken ve en az bir mp3 seçilmişse etkin olur.
+    const audioEnabled = loaderSettings.fullscreenBgEnabled && !loaderSettings.nativeDownload && bgAudioTracks.length > 0;
+    const bgAudioEntries = audioEnabled ? getBgAudioEntries() : [];
     
     let lua = `-- ============================================\n`;
     lua += `-- MTA San Andreas Mod Loader\n`;
@@ -1367,7 +1572,11 @@ function generateClientLua() {
     lua += `local primaryColorRGB = {r = ${primaryRgb.r}, g = ${primaryRgb.g}, b = ${primaryRgb.b}}\n`;
     lua += `local bgColorRGB = {r = ${bgRgb.r}, g = ${bgRgb.g}, b = ${bgRgb.b}}\n`;
     lua += `local textColorRGB = {r = ${textRgb.r}, g = ${textRgb.g}, b = ${textRgb.b}}\n`;
-    lua += `local modSwitchDelay = ${Math.max(50, Math.round(loaderSettings.modDelay * 1000))} -- ms cinsinden, bir mod indikten sonra diğerine geçiş süresi\n\n`;
+    lua += `local modSwitchDelay = ${Math.max(50, Math.round(loaderSettings.modDelay * 1000))} -- ms cinsinden, bir mod indikten sonra diğerine geçiş süresi\n`;
+    lua += `local panelOpacity = ${Math.max(0, Math.min(255, Math.round(loaderSettings.bgOpacity / 100 * 255)))} -- panel/arkaplan zemininin alfa (saydamlık) değeri\n`;
+    lua += `local smoothAnimationEnabled = ${loaderSettings.smoothAnimation ? 'true' : 'false'}\n`;
+    lua += `local shadowEffectEnabled = ${loaderSettings.shadowEffect ? 'true' : 'false'}\n`;
+    lua += `local smoothedPercentage = 0 -- yumuşak animasyon açıkken yüzde bu değere doğru kayarak ilerler\n\n`;
     
     // Araçlar
     if (modData.vehicles.size > 0) {
@@ -1471,6 +1680,11 @@ function generateClientLua() {
     lua += `    totalMods = #modsToLoad\n`;
     lua += `    currentMod = 0\n`;
     lua += `    isLoading = true\n`;
+    lua += `    smoothedPercentage = 0\n`;
+    if (loaderSettings.hideHudDuringLoading) {
+        lua += `    showChat(false)\n`;
+        lua += `    showPlayerHudComponent("all", false)\n`;
+    }
     if (audioEnabled) {
         lua += `    startBgMusic()\n`;
     }
@@ -1510,6 +1724,10 @@ function generateClientLua() {
     lua += `        isLoading = false\n`;
     if (audioEnabled) {
         lua += `        stopBgMusic()\n`;
+    }
+    if (loaderSettings.hideHudDuringLoading) {
+        lua += `        showChat(true)\n`;
+        lua += `        showPlayerHudComponent("all", true)\n`;
     }
     lua += `        outputDebugString("[Mod Loader] ✓ Tüm modlar başarıyla indirildi ve yüklendi!", 3, 0, 255, 0)\n`;
     lua += `    end\n`;
@@ -1579,6 +1797,16 @@ function generateClientLua() {
     lua += `addEventHandler("onClientResourceStart", resourceRoot, function()\n`;
     lua += `    loadMods()\n`;
     lua += `end)\n\n`;
+
+    if (loaderSettings.hideHudDuringLoading) {
+        lua += `-- Yükleme tamamlanmadan resource durursa chat/HUD gizli kalmasın diye güvenlik önlemi\n`;
+        lua += `addEventHandler("onClientResourceStop", resourceRoot, function()\n`;
+        lua += `    if isLoading then\n`;
+        lua += `        showChat(true)\n`;
+        lua += `        showPlayerHudComponent("all", true)\n`;
+        lua += `    end\n`;
+        lua += `end)\n\n`;
+    }
     
     // Progress bar (dxDraw) sistemi
     lua += `-- ============================================\n`;
@@ -1639,23 +1867,213 @@ function generateClientLua() {
 
     if (audioEnabled) {
         lua += `-- ============================================\n`;
-        lua += `-- ARKA PLAN MÜZİĞİ (opsiyonel MP3)\n`;
+        lua += `-- ARKA PLAN MÜZİKLERİ (birden fazla MP3 + geçiş paneli)\n`;
         lua += `-- ============================================\n\n`;
 
-        lua += `local bgMusicPath = "${bgAudioEntry.path}"\n`;
-        lua += `local bgMusicSound = nil\n\n`;
+        lua += `local bgMusicPaths = {\n`;
+        bgAudioEntries.forEach((entry) => {
+            lua += `    "${entry.path}",\n`;
+        });
+        lua += `}\n`;
+        lua += `local bgMusicTrackNames = {\n`;
+        bgAudioTracks.forEach((track) => {
+            const safeName = (track.name || track.file.name).replace(/"/g, "'");
+            lua += `    "${safeName}",\n`;
+        });
+        lua += `}\n`;
+        lua += `local bgMusicSound = nil\n`;
+        lua += `local bgMusicIndex = 1\n`;
+        lua += `local bgMusicVolume = ${Math.max(0, Math.min(1, loaderSettings.bgAudioVolume / 100)).toFixed(2)}\n`;
+        lua += `local bgMusicMuted = false\n`;
+        lua += `local musicPanelVisible = false -- panel artık GUI değil, DX ile çizilir\n\n`;
 
-        lua += `-- Müzik dosyası meta.xml'de download="true" ile paketlenir, yani resource\n`;
-        lua += `-- başlamadan önce oyuncuda hazır olur; yükleme başladığında çalınır, yükleme\n`;
-        lua += `-- bittiğinde durdurulur.\n`;
-        lua += `function startBgMusic()\n`;
-        lua += `    if bgMusicSound then return end\n`;
-        lua += `    bgMusicSound = playSound(bgMusicPath, true)\n`;
-        lua += `    if bgMusicSound then\n`;
-        lua += `        setSoundVolume(bgMusicSound, 0.6)\n`;
-        lua += `    else\n`;
-        lua += `        outputDebugString("[HATA] Arka plan müziği yüklenemedi: " .. bgMusicPath, 3, 255, 0, 0)\n`;
+        lua += `-- Müzik Paneli Tasarımı (Loader Tasarımı'ndan bağımsız, ayrı ayarlanır)\n`;
+        lua += `local musicPanelPosition = "${loaderSettings.musicPanelPosition}"\n`;
+        lua += `local musicBgColorRGB = {r = ${musicBgRgb.r}, g = ${musicBgRgb.g}, b = ${musicBgRgb.b}}\n`;
+        lua += `local musicAccentColorRGB = {r = ${musicAccentRgb.r}, g = ${musicAccentRgb.g}, b = ${musicAccentRgb.b}}\n`;
+        lua += `local musicTextColorRGB = {r = ${musicTextRgb.r}, g = ${musicTextRgb.g}, b = ${musicTextRgb.b}}\n`;
+        lua += `local musicPanelAlpha = ${Math.max(0, Math.min(255, Math.round(loaderSettings.musicOpacity / 100 * 255)))} -- müzik paneli zemininin alfa (saydamlık) değeri\n`;
+        lua += `local musicShadowEffectEnabled = ${loaderSettings.musicShadowEffect ? 'true' : 'false'}\n\n`;
+
+        lua += `-- Müzik dosyaları meta.xml'de download="true" ile paketlenir, yani resource\n`;
+        lua += `-- başlamadan önce oyuncuda hazır olurlar; yükleme başladığında çalınmaya\n`;
+        lua += `-- başlar, yükleme bittiğinde durdurulur ve panel/imleç de kapanır.\n`;
+        lua += `local function mtApplyMusicVolume()\n`;
+        lua += `    if bgMusicSound and isElement(bgMusicSound) then\n`;
+        lua += `        setSoundVolume(bgMusicSound, bgMusicMuted and 0 or bgMusicVolume)\n`;
         lua += `    end\n`;
+        lua += `end\n\n`;
+
+        lua += `function mtPlayCurrentTrack()\n`;
+        lua += `    if bgMusicSound and isElement(bgMusicSound) then\n`;
+        lua += `        stopSound(bgMusicSound)\n`;
+        lua += `        bgMusicSound = nil\n`;
+        lua += `    end\n`;
+        lua += `    local path = bgMusicPaths[bgMusicIndex]\n`;
+        lua += `    if not path then return end\n`;
+        lua += `    bgMusicSound = playSound(path, true)\n`;
+        lua += `    if bgMusicSound then\n`;
+        lua += `        mtApplyMusicVolume()\n`;
+        lua += `    else\n`;
+        lua += `        outputDebugString("[HATA] Arka plan müziği yüklenemedi: " .. path, 3, 255, 0, 0)\n`;
+        lua += `    end\n`;
+        lua += `end\n\n`;
+
+        lua += `-- Panelde << / >> butonlarıyla müzikler arasında geçiş yapılır\n`;
+        lua += `function mtNextMusicTrack()\n`;
+        lua += `    if #bgMusicPaths == 0 then return end\n`;
+        lua += `    bgMusicIndex = (bgMusicIndex % #bgMusicPaths) + 1\n`;
+        lua += `    mtPlayCurrentTrack()\n`;
+        lua += `end\n\n`;
+
+        lua += `function mtPrevMusicTrack()\n`;
+        lua += `    if #bgMusicPaths == 0 then return end\n`;
+        lua += `    bgMusicIndex = bgMusicIndex - 1\n`;
+        lua += `    if bgMusicIndex < 1 then bgMusicIndex = #bgMusicPaths end\n`;
+        lua += `    mtPlayCurrentTrack()\n`;
+        lua += `end\n\n`;
+
+        lua += `function mtToggleMusicMute()\n`;
+        lua += `    bgMusicMuted = not bgMusicMuted\n`;
+        lua += `    mtApplyMusicVolume()\n`;
+        lua += `end\n\n`;
+
+        lua += `-- Yükleme panelinin (ilerleme çubuğunun) o an ekranda kapladığı toplam\n`;
+        lua += `-- yüksekliği, seçilen stile göre hesaplar; müzik panelini buna göre\n`;
+        lua += `-- tam olarak bir satır üstüne, ortalı şekilde konumlandırmak için kullanılır.\n`;
+        lua += `local function getLoaderPanelHeight()\n`;
+        lua += `    if loaderStyle == "frame" then\n`;
+        lua += `        return (loaderFontSize + 10) + 16\n`;
+        lua += `    elseif loaderStyle == "segmented" then\n`;
+        lua += `        return (loaderFontSize + 10) + 18\n`;
+        lua += `    elseif loaderStyle == "sideLabel" then\n`;
+        lua += `        return (loaderFontSize + 14) + 8 + 10\n`;
+        lua += `    else\n`;
+        lua += `        local padding = 18\n`;
+        lua += `        local barHeight = 10\n`;
+        lua += `        local nameRowHeight = loaderFontSize + 6\n`;
+        lua += `        local sizeRowHeight = math.floor(loaderFontSize * 0.75) + 6\n`;
+        lua += `        local gapA, gapB = 10, 8\n`;
+        lua += `        return padding * 2 + nameRowHeight + gapA + barHeight + gapB + sizeRowHeight\n`;
+        lua += `    end\n`;
+        lua += `end\n\n`;
+
+        lua += `-- Müzik panelinin DX koordinatlarını döndürür. "musicPanelPosition" ayarına göre\n`;
+        lua += `-- ya yükleme panelinin (konumu top/center/bottom fark etmeksizin) bir satır\n`;
+        lua += `-- üstünde ortalanır, ya da ekranın seçilen sabit köşesinde durur.\n`;
+        lua += `local function getMusicPanelGeometry()\n`;
+        lua += `    local panelW, panelH = 320, 120\n`;
+        lua += `    local edgeMargin = 24\n`;
+        lua += `    if musicPanelPosition == "topRight" then\n`;
+        lua += `        return screenW - panelW - edgeMargin, screenH * 0.06, panelW, panelH\n`;
+        lua += `    elseif musicPanelPosition == "topLeft" then\n`;
+        lua += `        return edgeMargin, screenH * 0.06, panelW, panelH\n`;
+        lua += `    elseif musicPanelPosition == "bottomRight" then\n`;
+        lua += `        return screenW - panelW - edgeMargin, screenH - panelH - (screenH * 0.06), panelW, panelH\n`;
+        lua += `    elseif musicPanelPosition == "bottomLeft" then\n`;
+        lua += `        return edgeMargin, screenH - panelH - (screenH * 0.06), panelW, panelH\n`;
+        lua += `    end\n`;
+        lua += `    -- Varsayılan: "aboveLoader" (yükleme panelinin bir satır üstü, ortalı)\n`;
+        lua += `    local loaderHeight = getLoaderPanelHeight()\n`;
+        lua += `    local loaderTopY\n`;
+        lua += `    if loaderPosition == "top" then\n`;
+        lua += `        loaderTopY = screenH * 0.08\n`;
+        lua += `    elseif loaderPosition == "center" then\n`;
+        lua += `        loaderTopY = (screenH / 2) - (loaderHeight / 2)\n`;
+        lua += `    else\n`;
+        lua += `        loaderTopY = screenH - (screenH * 0.14)\n`;
+        lua += `    end\n`;
+        lua += `    local lineGap = loaderFontSize + 16 -- yükleme panelinin bir satır üstü\n`;
+        lua += `    local px = (screenW - panelW) / 2\n`;
+        lua += `    local py = loaderTopY - lineGap - panelH\n`;
+        lua += `    return px, py, panelW, panelH\n`;
+        lua += `end\n\n`;
+
+        lua += `-- Müzik kontrol panelini DX ile çizer (GUI kullanılmaz): parça adı,\n`;
+        lua += `-- önceki/sonraki butonları, sessiz aç/kapat ve ses seviyesi çubuğu.\n`;
+        lua += `local function drawMusicPanel()\n`;
+        lua += `    if not musicPanelVisible then return end\n`;
+        lua += `    if not bgMusicPaths or #bgMusicPaths == 0 then return end\n`;
+        lua += `    local px, py, panelW, panelH = getMusicPanelGeometry()\n`;
+        lua += `    \n`;
+        lua += `    if musicShadowEffectEnabled then\n`;
+        lua += `        dxDrawRectangle(px + 4, py + 4, panelW, panelH, tocolor(0, 0, 0, 90))\n`;
+        lua += `    end\n`;
+        lua += `    dxDrawRectangle(px, py, panelW, panelH, tocolor(musicBgColorRGB.r, musicBgColorRGB.g, musicBgColorRGB.b, musicPanelAlpha))\n`;
+        lua += `    dxDrawRectangle(px, py, panelW, 26, tocolor(musicAccentColorRGB.r, musicAccentColorRGB.g, musicAccentColorRGB.b, 235))\n`;
+        lua += `    dxDrawText("Yukleme Muzigi", px, py, px + panelW, py + 26, tocolor(255, 255, 255, 255), 0.85, "default-bold", "center", "center")\n`;
+        lua += `    \n`;
+        lua += `    local trackName = bgMusicTrackNames[bgMusicIndex] or "?"\n`;
+        lua += `    dxDrawText(bgMusicIndex .. "/" .. #bgMusicPaths .. "  -  " .. trackName, px + 10, py + 30, px + panelW - 10, py + 52, tocolor(musicTextColorRGB.r, musicTextColorRGB.g, musicTextColorRGB.b, 255), 0.78, "default-bold", "center", "center")\n`;
+        lua += `    \n`;
+        lua += `    local btnY = py + 58\n`;
+        lua += `    local btnH = 26\n`;
+        lua += `    local prevW, nextW = 55, 55\n`;
+        lua += `    local prevX = px + 10\n`;
+        lua += `    local nextX = px + panelW - 10 - nextW\n`;
+        lua += `    local muteX = prevX + prevW + 5\n`;
+        lua += `    local muteW = nextX - muteX - 5\n`;
+        lua += `    \n`;
+        lua += `    dxDrawRectangle(prevX, btnY, prevW, btnH, tocolor(musicTextColorRGB.r, musicTextColorRGB.g, musicTextColorRGB.b, 30))\n`;
+        lua += `    dxDrawText("<<", prevX, btnY, prevX + prevW, btnY + btnH, tocolor(musicTextColorRGB.r, musicTextColorRGB.g, musicTextColorRGB.b, 255), 1, "default-bold", "center", "center")\n`;
+        lua += `    \n`;
+        lua += `    dxDrawRectangle(muteX, btnY, muteW, btnH, tocolor(musicTextColorRGB.r, musicTextColorRGB.g, musicTextColorRGB.b, 30))\n`;
+        lua += `    dxDrawText(bgMusicMuted and "Ses Kapali" or "Ses Acik", muteX, btnY, muteX + muteW, btnY + btnH, tocolor(musicTextColorRGB.r, musicTextColorRGB.g, musicTextColorRGB.b, 255), 0.78, "default-bold", "center", "center")\n`;
+        lua += `    \n`;
+        lua += `    dxDrawRectangle(nextX, btnY, nextW, btnH, tocolor(musicTextColorRGB.r, musicTextColorRGB.g, musicTextColorRGB.b, 30))\n`;
+        lua += `    dxDrawText(">>", nextX, btnY, nextX + nextW, btnY + btnH, tocolor(musicTextColorRGB.r, musicTextColorRGB.g, musicTextColorRGB.b, 255), 1, "default-bold", "center", "center")\n`;
+        lua += `    \n`;
+        lua += `    local volY = btnY + btnH + 16\n`;
+        lua += `    local volX = px + 10\n`;
+        lua += `    local volW = panelW - 20\n`;
+        lua += `    dxDrawText("Ses Seviyesi", volX, volY - 16, volX + volW, volY, tocolor(musicTextColorRGB.r, musicTextColorRGB.g, musicTextColorRGB.b, 220), 0.68, "default-bold", "left", "bottom")\n`;
+        lua += `    dxDrawRectangle(volX, volY, volW, 10, tocolor(0, 0, 0, 120))\n`;
+        lua += `    dxDrawRectangle(volX, volY, math.max(volW * (bgMusicMuted and 0 or bgMusicVolume), 2), 10, tocolor(musicAccentColorRGB.r, musicAccentColorRGB.g, musicAccentColorRGB.b, 255))\n`;
+        lua += `end\n\n`;
+
+        lua += `-- Müzik paneli artık DX ile çizildiği için tıklamalar onClientClick\n`;
+        lua += `-- üzerinden buton/ses çubuğu koordinatlarıyla karşılaştırılarak yakalanır.\n`;
+        lua += `addEventHandler("onClientClick", root, function(button, state, cx, cy)\n`;
+        lua += `    if button ~= "left" or state ~= "up" then return end\n`;
+        lua += `    if not musicPanelVisible then return end\n`;
+        lua += `    if not bgMusicPaths or #bgMusicPaths == 0 then return end\n`;
+        lua += `    local px, py, panelW, panelH = getMusicPanelGeometry()\n`;
+        lua += `    local btnY = py + 58\n`;
+        lua += `    local btnH = 26\n`;
+        lua += `    local prevW, nextW = 55, 55\n`;
+        lua += `    local prevX = px + 10\n`;
+        lua += `    local nextX = px + panelW - 10 - nextW\n`;
+        lua += `    local muteX = prevX + prevW + 5\n`;
+        lua += `    local muteW = nextX - muteX - 5\n`;
+        lua += `    \n`;
+        lua += `    if cy >= btnY and cy <= btnY + btnH then\n`;
+        lua += `        if cx >= prevX and cx <= prevX + prevW then\n`;
+        lua += `            mtPrevMusicTrack()\n`;
+        lua += `            return\n`;
+        lua += `        elseif cx >= muteX and cx <= muteX + muteW then\n`;
+        lua += `            mtToggleMusicMute()\n`;
+        lua += `            return\n`;
+        lua += `        elseif cx >= nextX and cx <= nextX + nextW then\n`;
+        lua += `            mtNextMusicTrack()\n`;
+        lua += `            return\n`;
+        lua += `        end\n`;
+        lua += `    end\n`;
+        lua += `    \n`;
+        lua += `    local volY = btnY + btnH + 16\n`;
+        lua += `    local volX = px + 10\n`;
+        lua += `    local volW = panelW - 20\n`;
+        lua += `    if cy >= volY - 6 and cy <= volY + 16 and cx >= volX and cx <= volX + volW then\n`;
+        lua += `        local ratio = (cx - volX) / volW\n`;
+        lua += `        bgMusicVolume = math.max(0, math.min(1, ratio))\n`;
+        lua += `        mtApplyMusicVolume()\n`;
+        lua += `    end\n`;
+        lua += `end)\n\n`;
+
+        lua += `function startBgMusic()\n`;
+        lua += `    bgMusicIndex = 1\n`;
+        lua += `    musicPanelVisible = true\n`;
+        lua += `    showCursor(true)\n`;
+        lua += `    mtPlayCurrentTrack()\n`;
         lua += `end\n\n`;
 
         lua += `function stopBgMusic()\n`;
@@ -1663,6 +2081,8 @@ function generateClientLua() {
         lua += `        stopSound(bgMusicSound)\n`;
         lua += `    end\n`;
         lua += `    bgMusicSound = nil\n`;
+        lua += `    musicPanelVisible = false\n`;
+        lua += `    showCursor(false)\n`;
         lua += `end\n\n`;
 
         lua += `addEventHandler("onClientResourceStop", resourceRoot, function()\n`;
@@ -1686,10 +2106,11 @@ function generateClientLua() {
     
     lua += `local function drawLoaderUI()\n`;
     lua += `    local fontScale = loaderFontSize / 9\n`;
-    lua += `    local percentage = currentPercentage\n`;
+    lua += `    local percentage = math.floor(smoothedPercentage + 0.5)\n`;
     lua += `    local modName = currentModName ~= "" and currentModName or "Hazırlanıyor..."\n`;
     lua += `    local modSize = currentModSize\n`;
-    lua += `    local bgColorA = tocolor(bgColorRGB.r, bgColorRGB.g, bgColorRGB.b, 255)\n`;
+    lua += `    local bgColorA = tocolor(bgColorRGB.r, bgColorRGB.g, bgColorRGB.b, panelOpacity)\n`;
+    lua += `    local shadowColorA = tocolor(0, 0, 0, math.floor(panelOpacity * 0.55))\n`;
     lua += `    local primaryColorA = tocolor(primaryColorRGB.r, primaryColorRGB.g, primaryColorRGB.b, 255)\n`;
     lua += `    local textColorA = tocolor(textColorRGB.r, textColorRGB.g, textColorRGB.b, 255)\n`;
     lua += `    local mutedColorA = tocolor(textColorRGB.r, textColorRGB.g, textColorRGB.b, 160)\n`;
@@ -1704,6 +2125,9 @@ function generateClientLua() {
     lua += `        dxDrawText(label, barX, barY, barX + barWidth, barY + labelHeight, textColorA, fontScale, "default-bold", "center", "bottom")\n`;
     lua += `        \n`;
     lua += `        local innerBarY = barY + labelHeight\n`;
+    lua += `        if shadowEffectEnabled then\n`;
+    lua += `            dxDrawRectangle(barX + 3, innerBarY + 3, barWidth, barHeight, shadowColorA)\n`;
+    lua += `        end\n`;
     lua += `        dxDrawRectangle(barX, innerBarY, barWidth, barHeight, primaryColorA)\n`;
     lua += `        dxDrawRectangle(barX + border, innerBarY + border, barWidth - border * 2, barHeight - border * 2, bgColorA)\n`;
     lua += `        dxDrawRectangle(barX + border, innerBarY + border, math.max((barWidth - border * 2) * (percentage / 100), 2), barHeight - border * 2, primaryColorA)\n`;
@@ -1753,7 +2177,10 @@ function generateClientLua() {
     lua += `        local innerX = panelX + padding\n`;
     lua += `        local innerWidth = panelWidth - padding * 2\n`;
     lua += `        \n`;
-    lua += `        -- Panel arka planı\n`;
+    lua += `        -- Panel arka planı (gölge açıksa altına hafif kaydırılmış koyu bir kopya çizilir)\n`;
+    lua += `        if shadowEffectEnabled then\n`;
+    lua += `            dxDrawRectangle(panelX + 5, panelY + 5, panelWidth, panelHeight, shadowColorA)\n`;
+    lua += `        end\n`;
     lua += `        dxDrawRectangle(panelX, panelY, panelWidth, panelHeight, bgColorA)\n`;
     lua += `        \n`;
     lua += `        -- Mod adı (sol) ve yüzde (sağ)\n`;
@@ -1777,7 +2204,18 @@ function generateClientLua() {
     if (bgSlideEnabled) {
         lua += `        drawBgSlideshow()\n`;
     }
+    lua += `        if smoothAnimationEnabled then\n`;
+    lua += `            smoothedPercentage = smoothedPercentage + (currentPercentage - smoothedPercentage) * 0.15\n`;
+    lua += `            if math.abs(currentPercentage - smoothedPercentage) < 0.2 then\n`;
+    lua += `                smoothedPercentage = currentPercentage\n`;
+    lua += `            end\n`;
+    lua += `        else\n`;
+    lua += `            smoothedPercentage = currentPercentage\n`;
+    lua += `        end\n`;
     lua += `        drawLoaderUI()\n`;
+    if (audioEnabled) {
+        lua += `        drawMusicPanel()\n`;
+    }
     lua += `    end\n`;
     lua += `end)\n`;
 
@@ -2035,11 +2473,12 @@ function generateMetaXml() {
         xml += `\n`;
     }
 
-    const audioEnabled = loaderSettings.fullscreenBgEnabled && !loaderSettings.nativeDownload && bgAudio !== null;
+    const audioEnabled = loaderSettings.fullscreenBgEnabled && !loaderSettings.nativeDownload && bgAudioTracks.length > 0;
     if (audioEnabled) {
-        xml += `    <!-- ARKA PLAN MÜZİĞİ (MP3) -->\n`;
-        const audioEntry = getBgAudioEntry();
-        xml += `    <file src="${audioEntry.path}" download="true" />\n`;
+        xml += `    <!-- ARKA PLAN MÜZİKLERİ (MP3) -->\n`;
+        getBgAudioEntries().forEach((entry) => {
+            xml += `    <file src="${entry.path}" download="true" />\n`;
+        });
         xml += `\n`;
     }
 
@@ -2123,7 +2562,7 @@ function downloadScript() {
         }
 
         const bgSlideEnabled = loaderSettings.fullscreenBgEnabled && !loaderSettings.nativeDownload && bgImages.length > 0;
-        const audioEnabled = loaderSettings.fullscreenBgEnabled && !loaderSettings.nativeDownload && bgAudio !== null;
+        const audioEnabled = loaderSettings.fullscreenBgEnabled && !loaderSettings.nativeDownload && bgAudioTracks.length > 0;
         if (bgSlideEnabled || audioEnabled) {
             const loaderFolder = zip.folder('Loader');
             if (bgSlideEnabled) {
@@ -2132,8 +2571,9 @@ function downloadScript() {
                 });
             }
             if (audioEnabled) {
-                const audioEntry = getBgAudioEntry();
-                loaderFolder.file(audioEntry.fileName, audioEntry.file);
+                getBgAudioEntries().forEach((entry) => {
+                    loaderFolder.file(entry.fileName, entry.file);
+                });
             }
         }
         
